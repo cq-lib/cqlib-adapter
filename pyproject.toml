@@ -1,0 +1,43 @@
+[project]
+name = "cqlib-adapter"
+description = "Cqlib adapter"
+authors = [
+    { name = "Gao Jianjian", email = "jianjian001@outlook.com" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+dynamic = ["version", "dependencies"]
+classifiers = [
+    "Environment :: Console",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries"
+]
+
+keywords = [
+    "cqlib",
+    "cqlib adapter",
+    "quantum circuit",
+    "quantum computing",
+    "quantum programming language",
+    "quantum",
+    "sdk",
+]
+
+[tool.setuptools]
+packages = ["cqlib_adapter"]
+
+[tool.setuptools.dynamic]
+version = { file = "cqlib_adapter/VERSION.txt" }
+dependencies = { file = "requirements.txt" }
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
