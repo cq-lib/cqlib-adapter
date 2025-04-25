@@ -23,11 +23,56 @@ from cqlib.circuits.gates.x import X2P, X2M
 from cqlib.circuits.gates.y import Y2P, Y2M
 from cqlib.circuits.gates.xy import XY2P, XY2M
 
+
 # gate define
-x2p_gate = UnitaryGate(np.asarray(X2P()), label="x2p", num_qubits=1)
-x2m_gate = UnitaryGate(np.asarray(X2M()), label="x2m", num_qubits=1)
-y2p_gate = UnitaryGate(np.asarray(Y2P()), label="y2p", num_qubits=1)
-y2m_gate = UnitaryGate(np.asarray(Y2M()), label='y2m', num_qubits=1)
+# x2p_gate = UnitaryGate(np.asarray(X2P()), label="x2p", num_qubits=1)
+# x2m_gate = UnitaryGate(np.asarray(X2M()), label="x2m", num_qubits=1)
+# y2p_gate = UnitaryGate(np.asarray(Y2P()), label="y2p", num_qubits=1)
+# y2m_gate = UnitaryGate(np.asarray(Y2M()), label='y2m', num_qubits=1)
+
+
+# X2P
+class X2PGate(Gate):
+    def __init__(self, label=None):
+        super().__init__("x2p", 1, params=[], label=label)
+
+    def __array__(self, dtype=None, copy=None):
+        if copy is False:
+            raise ValueError("unable to avoid copy while creating an array as requested")
+        return np.asarray(X2P(), dtype=dtype)
+
+
+# X2M
+class X2MGate(Gate):
+    def __init__(self, label=None):
+        super().__init__("x2m", 1, [], label=label)
+
+    def __array__(self, dtype=None, copy=None):
+        if copy is False:
+            raise ValueError("unable to avoid copy while creating an array as requested")
+        return np.asarray(X2M(), dtype=dtype)
+
+
+# Y2P
+class Y2PGate(Gate):
+    def __init__(self, label=None):
+        super().__init__("y2p", 1, params=[], label=label)
+
+    def __array__(self, dtype=None, copy=None):
+        if copy is False:
+            raise ValueError("unable to avoid copy while creating an array as requested")
+        return np.asarray(Y2P(), dtype=dtype)
+
+
+# Y2M
+class Y2MGate(Gate):
+    def __init__(self, label=None):
+        super().__init__("y2m", 1, [], label=label)
+
+    def __array__(self, dtype=None, copy=None):
+        if copy is False:
+            raise ValueError("unable to avoid copy while creating an array as requested")
+        return np.asarray(Y2M(), dtype=dtype)
 
 
 # XY2P
@@ -47,6 +92,12 @@ class XY2PGate(Gate):
         if copy is False:
             raise ValueError("unable to avoid copy while creating an array as requested")
         return np.asarray(XY2P(self.params[0]), dtype=dtype)
+
+
+x2p_gate = X2PGate()
+x2m_gate = X2MGate()
+y2p_gate = Y2PGate()
+y2m_gate = Y2MGate()
 
 
 # XY2M
@@ -69,12 +120,16 @@ class XY2MGate(Gate):
 
 
 # equivalence rules
-# X2P
-# rx
+# rx pi/2
 rx_qc = QuantumCircuit(1)
 rx_qc.append(x2p_gate, [0])
 SELib.add_equivalence(RXGate(pi / 2), rx_qc)
 assert np.allclose(np.asarray(RXGate(pi / 2)), Operator(rx_qc).to_matrix())
+
+x_qc = QuantumCircuit(1)
+x_qc.rx(pi / 2, 0)
+SELib.add_equivalence(x2p_gate, x_qc)
+assert np.allclose(np.asarray(x2p_gate), Operator(x_qc).to_matrix())
 
 # x
 x_qc = QuantumCircuit(1)
@@ -115,6 +170,12 @@ x2m_qc = QuantumCircuit(1)
 x2m_qc.append(x2m_gate, [0])
 SELib.add_equivalence(RXGate(-pi / 2), x2m_qc)
 assert np.allclose(np.asarray(RXGate(-pi / 2)), Operator(x2m_qc).to_matrix())
+
+# X2M
+x2m_qc = QuantumCircuit(1)
+x2m_qc.rx(-pi / 2, 0)
+SELib.add_equivalence(x2m_gate, x2m_qc)
+assert np.allclose(np.asarray(x2m_gate), Operator(x2m_qc).to_matrix())
 
 # Y2P
 y2p_qc = QuantumCircuit(1)
@@ -182,4 +243,3 @@ __all__ = [
     'XY2PGate',
     'XY2MGate'
 ]
-print(f'__all__: {__all__}')
