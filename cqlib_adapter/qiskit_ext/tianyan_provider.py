@@ -14,7 +14,8 @@ from pathlib import Path
 
 import dotenv
 
-from .tianyan_backend import TianYanBackend, BackendConfiguration, CqlibAdapterError, BackendStatus
+from .tianyan_backend import TianYanBackend, BackendConfiguration, CqlibAdapterError,\
+    BackendStatus, TianYanQuantumBackend, TianYanSimulatorBackend
 from .api_client import ApiClient
 
 
@@ -44,10 +45,17 @@ class TianYanProvider:
                 continue
             if simulator is not None and cfg.simulator != simulator:
                 continue
-            bs.append(TianYanBackend(
-                configuration=cfg,
-                api_client=self._api_client,
-            ))
+            if cfg.simulator:
+                backend = TianYanSimulatorBackend(
+                    configuration=cfg,
+                    api_client=self._api_client,
+                )
+            else:
+                backend = TianYanQuantumBackend(
+                    configuration=cfg,
+                    api_client=self._api_client,
+                )
+            bs.append(backend)
         return bs
 
     def backend(self, name: str, ) -> TianYanBackend:
