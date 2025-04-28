@@ -225,7 +225,13 @@ class TianYanBackend(Backend):
     def backend_type(self):
         return self.configuration.backend_type
 
-    def run(self, run_input, **options) -> JobV1:
+    def run(
+            self,
+            run_input,
+            shots: int = 1024,
+            readout_calibration: bool = True,
+            **options
+    ) -> JobV1:
         if isinstance(run_input, QuantumCircuit):
             circuits = [run_input]
         elif isinstance(run_input, list):
@@ -233,21 +239,17 @@ class TianYanBackend(Backend):
         else:
             raise TypeError(f"Unsupported input type: {type(run_input)}")
 
-        cqlib_circuits = [to_cqlib(circ) for circ in circuits]
-        if self.simulator:
-            cs = [c.as_str() for c in cqlib_circuits]
-        else:
-            cs = [c.qcis for c in cqlib_circuits]
-
         task_ids = self._api_client.submit_job(
-            cs,
+            [to_cqlib(circ) for circ in circuits],
             machine=self.configuration.backend_name,
-            **options
+            shots=shots,
         )
         return TianYanJob(
             backend=self,
             job_id=','.join(task_ids),
             api_client=self._api_client,
+            shots=shots,
+            readout_calibration=readout_calibration,
             **options
         )
 

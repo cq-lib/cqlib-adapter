@@ -14,7 +14,7 @@ from pathlib import Path
 
 import dotenv
 
-from .tianyan_backend import TianYanBackend, BackendConfiguration, CqlibAdapterError,\
+from .tianyan_backend import TianYanBackend, BackendConfiguration, CqlibAdapterError, \
     BackendStatus, TianYanQuantumBackend, TianYanSimulatorBackend
 from .api_client import ApiClient
 
@@ -37,13 +37,15 @@ class TianYanProvider:
         self.name = "qiskit_adapter"
         self._api_client = ApiClient(token=token)
 
-    def backends(self, simulator: bool = None, online: bool = True):
+    def backends(self, simulator: bool = None, online: bool = True, name: str = None):
         bs = []
         for data in self._api_client.get_backends():
             cfg = BackendConfiguration.from_api(data)
             if online and cfg.status not in [BackendStatus.running, BackendStatus.calibrating]:
                 continue
             if simulator is not None and cfg.simulator != simulator:
+                continue
+            if name is not None and cfg.backend_name != name:
                 continue
             if cfg.simulator:
                 backend = TianYanSimulatorBackend(
@@ -58,7 +60,7 @@ class TianYanProvider:
             bs.append(backend)
         return bs
 
-    def backend(self, name: str, ) -> TianYanBackend:
+    def backend(self, name: str) -> TianYanBackend:
         for b in self.backends():
             if b.name == name:
                 return b

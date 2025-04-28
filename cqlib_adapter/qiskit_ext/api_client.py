@@ -16,7 +16,7 @@ from datetime import datetime
 import requests
 from cqlib.circuits import Circuit
 from cqlib.quantum_platform import TianYanPlatform, QuantumLanguage
-from cqlib.exceptions import CqlibError, CqlibRequestError
+from cqlib.exceptions import CqlibRequestError
 
 
 class ApiClient:
@@ -77,7 +77,7 @@ class ApiClient:
         data = response.json()
         return data.get('data', {})
 
-    def get_quantum_machine_config(self, computer_code):
+    def get_quantum_machine_config(self, computer_code: str):
         """
         Only quantum machine, not simulator.
 
@@ -86,12 +86,12 @@ class ApiClient:
         """
         return self.platform.download_config(machine=computer_code)
 
-    def submit_job(self, circuits: str | list[str], machine: str, **kwargs):
+    def submit_job(self, circuits: Circuit | list[Circuit], machine: str, **kwargs):
         if not isinstance(circuits, list):
             circuits = [circuits]
 
         task_ids = self.platform.submit_experiment(
-            circuits,
+            [c.as_str() for c in circuits],
             machine_name=machine,
             language=QuantumLanguage.QCIS,
             num_shots=kwargs.get('shots', 1000),
@@ -111,6 +111,8 @@ class ApiClient:
                 "Authorization": f'Bearer {self.platform.access_token}'
             })
         data = response.json()
+        if data.get('code') != 0:
+            raise CqlibRequestError(f"request error {data.get('msg')}")
         return data.get('data').get('experimentResultModelList')
 
     @staticmethod

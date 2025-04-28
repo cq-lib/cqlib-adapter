@@ -43,8 +43,12 @@ class TianYanJob(JobV1):
         lu = LaboratoryUtils()
         results = []
         for item in self._api_client.query_job(task_ids):
-            shots = len(item['resultStatus']) - 1
-            if self._backend.simulator or not self.metadata.get('readout_calibration', True):
+            readout_calibration = self.metadata.get('readout_calibration', True)
+            if 'shots' in  self.metadata:
+                shots = self.metadata['shots']
+            else:
+                shots = len(item['resultStatus']) - 1
+            if self._backend.simulator or not readout_calibration:
                 basis_list = lu.readout_data_to_state_probabilities(item)
                 counts, memory_list = self.to_counts(basis_list)
             else:
