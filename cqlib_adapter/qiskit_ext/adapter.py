@@ -10,6 +10,12 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
+"""
+Adapter module for integrating different interfaces.
+
+This module provides classes and methods to adapt various interfaces,
+making them compatible with the expected input/output format.
+"""
 
 from qiskit.circuit import QuantumCircuit as QiskitCircuit
 
@@ -17,6 +23,19 @@ from cqlib import Circuit as CqlibCircuit
 
 
 def to_cqlib(qiskit_circuit: QiskitCircuit) -> CqlibCircuit:
+    """
+    Converts a Qiskit QuantumCircuit to a CqlibCircuit.
+
+    Args:
+        qiskit_circuit (QiskitCircuit): The Qiskit quantum circuit to be converted.
+
+    Returns:
+        CqlibCircuit: The converted circuit in the Cqlib format.
+
+    Raises:
+        NotImplementedError: If an operation in the Qiskit circuit is not supported
+                             by the CqlibCircuit.
+    """
     qubits_mapping = {q: i for i, q in enumerate(qiskit_circuit.qubits)}
     clbits_mapping = {c: i for i, c in enumerate(qiskit_circuit.clbits)}
     measure_qubits = {}

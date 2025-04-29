@@ -10,6 +10,14 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
+"""
+Gates module for defining custom quantum gates and their equivalence rules.
+
+This module provides custom quantum gates (e.g., X2P, X2M, Y2P, Y2M, XY2P, XY2M)
+and their equivalence rules with standard Qiskit gates. It also includes
+validation to ensure the correctness of the gate definitions.
+"""
+
 from math import pi
 
 import numpy as np
@@ -26,15 +34,41 @@ from cqlib.circuits.gates.xy import XY2P, XY2M
 
 # X2P
 class X2PGate(Gate):
+    """
+    Custom quantum gate representing a positive X rotation by π/2.
+
+    This gate is equivalent to a rotation around the X-axis by π/2 radians.
+    """
+
     def __init__(self, label=None):
+        """
+        Initializes the X2PGate.
+
+        Args:
+            label (str, optional): A custom label for the gate. Defaults to None.
+        """
         super().__init__("x2p", 1, params=[], label=label)
 
     def _define(self):
+        """Defines the quantum circuit for the X2P gate."""
         defn = QuantumCircuit(1)
         defn.rx(pi / 2, 0)
         self._definition = defn
 
     def __array__(self, dtype=None, copy=None):
+        """
+        Returns the matrix representation of the gate.
+
+        Args:
+            dtype: The data type of the array.
+            copy: Whether to avoid copying the array.
+
+        Returns:
+            np.ndarray: The matrix representation of the gate.
+
+        Raises:
+            ValueError: If copying cannot be avoided.
+        """
         if copy is False:
             raise ValueError("unable to avoid copy while creating an array as requested")
         return np.asarray(X2P(), dtype=dtype)
@@ -42,15 +76,41 @@ class X2PGate(Gate):
 
 # X2M
 class X2MGate(Gate):
+    """
+    Custom quantum gate representing a negative X rotation by π/2.
+
+    This gate is equivalent to a rotation around the X-axis by -π/2 radians.
+    """
+
     def __init__(self, label=None):
+        """
+        Initializes the X2MGate.
+
+        Args:
+            label (str, optional): A custom label for the gate. Defaults to None.
+        """
         super().__init__("x2m", 1, [], label=label)
 
     def _define(self):
+        """Defines the quantum circuit for the X2M gate."""
         defn = QuantumCircuit(1)
         defn.rx(-pi / 2, 0)
         self._definition = defn
 
     def __array__(self, dtype=None, copy=None):
+        """
+        Returns the matrix representation of the gate.
+
+        Args:
+            dtype: The data type of the array.
+            copy: Whether to avoid copying the array.
+
+        Returns:
+            np.ndarray: The matrix representation of the gate.
+
+        Raises:
+            ValueError: If copying cannot be avoided.
+        """
         if copy is False:
             raise ValueError("unable to avoid copy while creating an array as requested")
         return np.asarray(X2M(), dtype=dtype)
@@ -58,15 +118,41 @@ class X2MGate(Gate):
 
 # Y2P
 class Y2PGate(Gate):
+    """
+    Custom quantum gate representing a positive Y rotation by π/2.
+
+    This gate is equivalent to a rotation around the Y-axis by π/2 radians.
+    """
+
     def __init__(self, label=None):
+        """
+        Initializes the Y2PGate.
+
+        Args:
+            label (str, optional): A custom label for the gate. Defaults to None.
+        """
         super().__init__("y2p", 1, params=[], label=label)
 
     def _define(self):
+        """Defines the quantum circuit for the Y2P gate."""
         defn = QuantumCircuit(1)
         defn.ry(pi / 2, 0)
         self._definition = defn
 
     def __array__(self, dtype=None, copy=None):
+        """
+        Returns the matrix representation of the gate.
+
+        Args:
+            dtype: The data type of the array.
+            copy: Whether to avoid copying the array.
+
+        Returns:
+            np.ndarray: The matrix representation of the gate.
+
+        Raises:
+            ValueError: If copying cannot be avoided.
+        """
         if copy is False:
             raise ValueError("unable to avoid copy while creating an array as requested")
         return np.asarray(Y2P(), dtype=dtype)
@@ -74,15 +160,41 @@ class Y2PGate(Gate):
 
 # Y2M
 class Y2MGate(Gate):
+    """
+    Custom quantum gate representing a negative Y rotation by π/2.
+
+    This gate is equivalent to a rotation around the Y-axis by -π/2 radians.
+    """
+
     def __init__(self, label=None):
+        """
+        Initializes the Y2MGate.
+
+        Args:
+            label (str, optional): A custom label for the gate. Defaults to None.
+        """
         super().__init__("y2m", 1, [], label=label)
 
     def _define(self):
+        """Defines the quantum circuit for the Y2M gate."""
         defn = QuantumCircuit(1)
         defn.ry(-pi / 2, 0)
         self._definition = defn
 
     def __array__(self, dtype=None, copy=None):
+        """
+        Returns the matrix representation of the gate.
+
+        Args:
+            dtype: The data type of the array.
+            copy: Whether to avoid copying the array.
+
+        Returns:
+            np.ndarray: The matrix representation of the gate.
+
+        Raises:
+            ValueError: If copying cannot be avoided.
+        """
         if copy is False:
             raise ValueError("unable to avoid copy while creating an array as requested")
         return np.asarray(Y2M(), dtype=dtype)
@@ -90,10 +202,25 @@ class Y2MGate(Gate):
 
 # XY2P
 class XY2PGate(Gate):
-    def __init__(self, theta, label=None):
+    """
+    Custom quantum gate representing a positive XY rotation.
+
+    This gate is parameterized by an angle `theta` and represents a rotation
+    in the XY plane.
+    """
+
+    def __init__(self, theta: float | Parameter, label: str = None):
+        """
+        Initializes the XY2PGate.
+
+        Args:
+            theta (float|Parameter): The rotation angle.
+            label (str, optional): A custom label for the gate. Defaults to None.
+        """
         super().__init__("xy2p", 1, [theta], label=label)
 
     def _define(self):
+        """Defines the quantum circuit for the XY2P gate."""
         theta_ = self.params[0]
         defn = QuantumCircuit(1)
         defn.rz(pi / 2 - theta_, 0)
@@ -102,6 +229,19 @@ class XY2PGate(Gate):
         self._definition = defn
 
     def __array__(self, dtype=None, copy=None):
+        """
+        Returns the matrix representation of the gate.
+
+        Args:
+            dtype: The data type of the array.
+            copy: Whether to avoid copying the array.
+
+        Returns:
+            np.ndarray: The matrix representation of the gate.
+
+        Raises:
+            ValueError: If copying cannot be avoided.
+        """
         if copy is False:
             raise ValueError("unable to avoid copy while creating an array as requested")
         return np.asarray(XY2P(self.params[0]), dtype=dtype)
@@ -109,10 +249,25 @@ class XY2PGate(Gate):
 
 # XY2M
 class XY2MGate(Gate):
-    def __init__(self, theta, label=None):
+    """
+    Custom quantum gate representing a negative XY rotation.
+
+    This gate is parameterized by an angle `theta` and represents a rotation
+    in the XY plane.
+    """
+
+    def __init__(self, theta: float | Parameter, label: str = None):
+        """
+        Initializes the XY2MGate.
+
+        Args:
+            theta (float | Parameter): The rotation angle.
+            label (str, optional): A custom label for the gate. Defaults to None.
+        """
         super().__init__("xy2m", 1, [theta], label=label)
 
     def _define(self):
+        """Defines the quantum circuit for the XY2M gate."""
         theta_ = self.params[0]
         defn = QuantumCircuit(1)
         defn.rz(-pi / 2 - theta_, 0)
@@ -121,12 +276,25 @@ class XY2MGate(Gate):
         self._definition = defn
 
     def __array__(self, dtype=None, copy=None):
+        """
+        Returns the matrix representation of the gate.
+
+        Args:
+            dtype: The data type of the array.
+            copy: Whether to avoid copying the array.
+
+        Returns:
+            np.ndarray: The matrix representation of the gate.
+
+        Raises:
+            ValueError: If copying cannot be avoided.
+        """
         if copy is False:
             raise ValueError("unable to avoid copy while creating an array as requested")
         return np.asarray(XY2M(self.params[0]), dtype=dtype)
 
 
-# equivalence rules
+# Equivalence rules and validation
 # rx pi/2
 rx_qc = QuantumCircuit(1)
 rx_qc.append(X2PGate(), [0])

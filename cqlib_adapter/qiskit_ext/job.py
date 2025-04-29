@@ -10,6 +10,13 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
+"""
+Job module for managing quantum computing jobs.
+
+This module provides a class to handle job submission, status checking, and result retrieval
+for quantum computing tasks executed on a backend.
+"""
+
 import time
 from collections import defaultdict
 
@@ -24,7 +31,13 @@ from .api_client import ApiClient
 
 
 class TianYanJob(JobV1):
+    """A class representing a job executed on the TianYan quantum computing platform.
 
+    Attributes:
+        job_id (str): The unique identifier for the job.
+        backend (Backend): The backend where the job is executed.
+        api_client (ApiClient): The client for interacting with the API.
+    """
     def __init__(
             self,
             job_id: str,
@@ -32,6 +45,14 @@ class TianYanJob(JobV1):
             api_client: ApiClient | None = None,
             **kwargs
     ) -> None:
+        """Initializes the TianYanJob instance.
+
+        Args:
+            job_id (str): The unique identifier for the job.
+            backend (Backend, optional): The backend where the job is executed. Defaults to None.
+            api_client (ApiClient, optional): The client for interacting with the API. Defaults to None.
+            **kwargs: Additional keyword arguments.
+        """
         super().__init__(backend=backend, job_id=job_id, **kwargs)
         if api_client is None:
             api_client = ApiClient()
@@ -42,7 +63,14 @@ class TianYanJob(JobV1):
         pass
 
     def result(self) -> Result:
-        """Return the results of the job."""
+        """Retrieves the results of the job.
+
+        Returns:
+            Result: The results of the job, including counts and memory data.
+
+        Raises:
+            Exception: If the job fails to complete or retrieve results.
+        """
         task_ids = self._job_id.split(',')
         while 1:
             status = self.status()
@@ -54,7 +82,7 @@ class TianYanJob(JobV1):
         results = []
         for item in self._api_client.query_job(task_ids):
             readout_calibration = self.metadata.get('readout_calibration', True)
-            if 'shots' in  self.metadata:
+            if 'shots' in self.metadata:
                 shots = self.metadata['shots']
             else:
                 shots = len(item['resultStatus']) - 1
@@ -87,11 +115,19 @@ class TianYanJob(JobV1):
         })
 
     def cancel(self):
-        """Attempt to cancel the job."""
+        """Attempts to cancel the job.
+
+        Raises:
+            NotImplementedError: If cancellation is not supported.
+        """
         raise NotImplementedError
 
     def status(self) -> JobStatus:
-        """Return the status of the job, among the values of ``JobStatus``."""
+        """Retrieves the status of the job.
+
+        Returns:
+            JobStatus: The current status of the job (e.g., DONE, RUNNING, QUEUED).
+        """
         task_ids = self._job_id.split(',')
         # todo: use new light api
         data = self._api_client.query_job(task_ids)
@@ -130,16 +166,15 @@ class TianYanJob(JobV1):
 
     @staticmethod
     def probability_correction(probabilities, shots):
-        """correction of the measured probability of 01 quantum state.
-           If there is a probability greater than 1, change this item to 1.
-           If there is anything less than 0, change the item to 0.
+        """Corrects the measured probability of quantum states.
 
         Args:
-            probabilities:
-                corrected probability.
+            probabilities (dict): The measured probabilities of quantum states.
+            shots (int): The number of shots (measurements) taken.
 
         Returns:
-            Dict: corrected probability.
+            dict: A dictionary of corrected probabilities.
+            list: A list of memory states after correction.
         """
         hex_keys = []
         norm_probs = []
