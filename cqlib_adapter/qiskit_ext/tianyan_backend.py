@@ -16,6 +16,7 @@ from datetime import datetime
 from enum import Enum, IntEnum
 
 from qiskit.circuit import QuantumCircuit, Parameter, Measure, Barrier
+from qiskit.circuit.library import standard_gates
 from qiskit.circuit.library.standard_gates import CZGate, RZGate, PhaseGate, HGate, \
     GlobalPhaseGate
 from qiskit.providers import BackendV2 as Backend, Options, JobV1, QubitProperties
@@ -69,6 +70,7 @@ class BackendConfiguration:
             simulator: bool,
             conditional: bool,
             coupling_map: list,
+            derivative_gates: list[str] = None,
             status: BackendStatus = None,
             supported_instructions: list[str] = None,
             credits_required: bool = None,
@@ -84,6 +86,7 @@ class BackendConfiguration:
         self.backend_name = backend_name
         self.n_qubits = n_qubits
         self.basis_gates = basis_gates
+        self.derivative_gates = derivative_gates
         self.gates = gates
         self.simulator = simulator
         self.conditional = conditional
@@ -133,6 +136,7 @@ class BackendConfiguration:
             # todo: 全振幅仿真机，比特太多了。先限制一下
             coupling_map = [[i, j] for i in range(min(n_qubits, 100)) for j in range(i)]
         basis_gates = []
+        derivative_gates = []
         gates = []
 
         for gate in data['baseGate']:
@@ -165,11 +169,17 @@ class BackendConfiguration:
                 coupling_map=gate_coupling_map
             ))
 
+        for gate in data['derivativeGate']:
+            name = gate['qcis'].lower()
+            if name not in basis_gates:
+                derivative_gates.append(name)
+
         data = {
             'backend_id': backend_id,
             'backend_name': data['code'],
             'n_qubits': data['bitWidth'],
             'basis_gates': basis_gates,
+            'derivative_gates': derivative_gates,
             'gates': gates,
             'local': False,
             'simulator': backend_type in [BackendType.simulator, BackendType.offline_simulator],
@@ -349,7 +359,8 @@ class TianYanQuantumBackend(TianYanBackend):
             p = InstructionProperties(error=error_values[i] * error_unit, duration=1e-8)
             cz_props[q0, q1] = p
             cz_props[q1, q0] = p
-        target.add_instruction(CZGate(), cz_props)
+        if 'cz' in self.configuration.basis_gates:
+            target.add_instruction(CZGate(), cz_props)
 
     def _update_single_gates(self, target: Target):
         rz_props = {}
@@ -367,15 +378,22 @@ class TianYanQuantumBackend(TianYanBackend):
                 error=gate_values[i] * gate_unit,
                 duration=0
             )
-        target.add_instruction(RZGate(Parameter('theta')), rz_props)
-        target.add_instruction(HGate(), single_props.copy())
-
-        target.add_instruction(X2PGate(), single_props.copy())
-        target.add_instruction(X2MGate(), single_props.copy())
-        target.add_instruction(Y2PGate(), single_props.copy())
-        target.add_instruction(Y2MGate(), single_props.copy())
-        target.add_instruction(XY2PGate(Parameter('theta')), single_props.copy())
-        target.add_instruction(XY2MGate(Parameter('theta')), single_props.copy())
+        if 'rz' in self.configuration.basis_gates:
+            target.add_instruction(RZGate(Parameter('theta')), rz_props)
+        if 'x2p' in self.configuration.basis_gates:
+            target.add_instruction(X2PGate(), single_props.copy())
+            # HGate is very import.
+            target.add_instruction(HGate(), single_props.copy())
+        if 'x2m' in self.configuration.basis_gates:
+            target.add_instruction(X2MGate(), single_props.copy())
+        if 'y2p' in self.configuration.basis_gates:
+            target.add_instruction(Y2PGate(), single_props.copy())
+        if 'y2m' in self.configuration.basis_gates:
+            target.add_instruction(Y2MGate(), single_props.copy())
+        if 'xy2p' in self.configuration.basis_gates:
+            target.add_instruction(XY2PGate(Parameter('theta')), single_props.copy())
+        if 'xy2m' in self.configuration.basis_gates:
+            target.add_instruction(XY2MGate(Parameter('theta')), single_props.copy())
 
         target.add_instruction(GlobalPhaseGate(Parameter('phase')), {(): None})
 
@@ -392,7 +410,8 @@ class TianYanQuantumBackend(TianYanBackend):
 
     def _update_barrier_gate(self, target: Target):
         # 添加 Barrier 门的逻辑
-        target.add_instruction(Barrier, name="barrier")
+        if 'barrier' in self.configuration.basis_gates:
+            target.add_instruction(Barrier, name="barrier")
 
 
 class TianYanSimulatorBackend(TianYanBackend):
@@ -403,3 +422,45 @@ class TianYanSimulatorBackend(TianYanBackend):
             api_client: 'ApiClient',
     ) -> None:
         super().__init__(configuration=configuration, api_client=api_client)
+        target = Target(
+            num_qubits=configuration.n_qubits,
+            description=configuration.backend_name,
+        )
+        self._update_gates(target)
+        self._target = target
+
+    def _update_gates(self, target):
+        q_props = {(q,): None for q in range(self.configuration.n_qubits)}
+        gates = set(self.configuration.basis_gates + self.configuration.derivative_gates)
+        ins_mapping_list = {
+            'rx': [standard_gates.RXGate(Parameter('theta')), q_props],
+            'ry': [standard_gates.RYGate(Parameter('theta')), q_props],
+            'rz': [standard_gates.RZGate(Parameter('theta')), q_props],
+            'x2p': [X2PGate(), q_props],
+            'x2m': [X2MGate(), q_props],
+            'y2p': [Y2PGate(), q_props],
+            'y2m': [Y2MGate(), q_props],
+            'xy2p': [XY2PGate(Parameter('theta')), q_props],
+            'xy2m': [XY2MGate(Parameter('theta')), q_props],
+            'h': [standard_gates.HGate(), q_props],
+            'x': [standard_gates.XGate(), q_props],
+            'y': [standard_gates.YGate(), q_props],
+            'z': [standard_gates.ZGate(), q_props],
+            's': [standard_gates.SGate(), q_props],
+            'sd': [standard_gates.SdgGate(), q_props],
+            't': [standard_gates.TGate(), q_props],
+            'td': [standard_gates.TdgGate(), q_props],
+
+            'measure': [Measure(), q_props],
+        }
+        ins_mapping_dict = {
+            'cz': {'instruction': CZGate, 'name': 'cz'},
+            'cx': {'instruction': standard_gates.CXGate, 'name': 'cx'},
+            'barrier': {'instruction': Barrier, 'name': 'barrier'}
+        }
+        for gate in gates:
+            if gate in ins_mapping_list:
+                target.add_instruction(*ins_mapping_list[gate])
+            elif gate in ins_mapping_dict:
+                target.add_instruction(**ins_mapping_dict[gate])
+        print(target)
