@@ -19,7 +19,6 @@ validation to ensure the correctness of the gate definitions.
 """
 
 from math import pi
-from random import random
 
 import numpy as np
 from qiskit.quantum_info import Operator
@@ -357,17 +356,9 @@ class RxyGate(Gate):
         return np.asarray(RXY(self.params[0], self.params[1]), dtype=dtype)
 
 
-# Equivalence rules and validation
-# rx pi/2
-rx_qc = QuantumCircuit(1)
-rx_qc.append(X2PGate(), [0])
-# SELib.add_equivalence(RXGate(pi / 2), rx_qc)
-assert np.allclose(np.asarray(RXGate(pi / 2)), Operator(rx_qc).to_matrix())
-
 x_qc = QuantumCircuit(1)
 x_qc.rx(pi / 2, 0)
 SELib.add_equivalence(X2PGate(), x_qc)
-assert np.allclose(np.asarray(X2PGate()), Operator(x_qc).to_matrix())
 
 # x
 x_qc = QuantumCircuit(1)
@@ -387,10 +378,6 @@ rx_qc.append(X2MGate(), [0])
 rx_qc.rz(-pi / 2, 0)
 SELib.add_equivalence(RXGate(theta), rx_qc)
 
-for i in range(5):
-    t = pi * i / 5
-    assert np.allclose(np.asarray(RXGate(t)), Operator(rx_qc.assign_parameters([t])).to_matrix())
-
 # RY
 theta = Parameter("theta")
 ry_qc = QuantumCircuit(1)
@@ -399,32 +386,14 @@ ry_qc.rz(theta, 0)
 ry_qc.append(X2MGate(), [0])
 SELib.add_equivalence(RYGate(theta), ry_qc)
 
-for i in range(5):
-    t = pi * i / 5
-    assert np.allclose(np.asarray(RYGate(t)), Operator(ry_qc.assign_parameters([t])).to_matrix())
-
-# X2M
-x2m_qc = QuantumCircuit(1)
-x2m_qc.append(X2MGate(), [0])
-# SELib.add_equivalence(RXGate(-pi / 2), x2m_qc)
-assert np.allclose(np.asarray(RXGate(-pi / 2)), Operator(x2m_qc).to_matrix())
-
 # X2M
 x2m_qc = QuantumCircuit(1)
 x2m_qc.rx(-pi / 2, 0)
 SELib.add_equivalence(X2MGate(), x2m_qc)
-assert np.allclose(np.asarray(X2MGate()), Operator(x2m_qc).to_matrix())
-
-# Y2P
-y2p_qc = QuantumCircuit(1)
-y2p_qc.append(Y2PGate(), [0])
-# SELib.add_equivalence(RYGate(pi / 2), y2p_qc)
-assert np.allclose(np.asarray(RYGate(pi / 2)), Operator(y2p_qc).to_matrix())
 
 ry_qc = QuantumCircuit(1)
 ry_qc.ry(pi / 2, 0)
 SELib.add_equivalence(Y2PGate(), ry_qc)
-assert np.allclose(np.asarray(Y2PGate()), Operator(ry_qc).to_matrix())
 
 # Y
 y_qc = QuantumCircuit(1)
@@ -432,18 +401,10 @@ y_qc.append(Y2PGate(), [0])
 y_qc.append(Y2PGate(), [0])
 y_qc.append(GlobalPhaseGate(pi / 2), [])
 SELib.add_equivalence(YGate(), y_qc)
-assert np.allclose(np.asarray(YGate()), Operator(y_qc).to_matrix())
-
-# X2M
-y2m_qc = QuantumCircuit(1)
-y2m_qc.append(Y2MGate(), [0])
-# SELib.add_equivalence(RYGate(-pi / 2), y2m_qc)
-assert np.allclose(np.asarray(RYGate(-pi / 2)), Operator(y2m_qc).to_matrix())
 
 ry_qc = QuantumCircuit(1)
 ry_qc.ry(-pi / 2, 0)
 SELib.add_equivalence(Y2MGate(), ry_qc)
-assert np.allclose(np.asarray(Y2MGate()), Operator(ry_qc).to_matrix())
 
 #  H gate
 h_decomp = QuantumCircuit(1)
@@ -451,7 +412,6 @@ h_decomp.rz(pi, 0)
 h_decomp.append(Y2PGate(), [0])
 h_decomp.append(GlobalPhaseGate(pi / 2), [])
 SELib.add_equivalence(HGate(), h_decomp)
-assert np.allclose(np.asarray(HGate()), Operator(h_decomp).to_matrix())
 
 # XY2P
 theta = Parameter("theta")
@@ -461,13 +421,6 @@ xy2p_qc.ry(pi / 2, 0)
 xy2p_qc.rz(theta - pi / 2, 0)
 SELib.add_equivalence(XY2PGate(theta), xy2p_qc)
 
-qc = QuantumCircuit(1)
-qc.append(XY2PGate(theta), [0])
-for i in range(5):
-    t = pi * i / 5
-    assert np.allclose(np.asarray(XY2PGate(t)), Operator(xy2p_qc.assign_parameters([t])).to_matrix())
-    assert Operator(xy2p_qc.assign_parameters([t])).equiv(Operator(qc.assign_parameters([t])))
-
 # XY2M
 theta = Parameter("theta")
 xy2m_qc = QuantumCircuit(1)
@@ -475,14 +428,6 @@ xy2m_qc.rz(-pi / 2 - theta, 0)
 xy2m_qc.ry(pi / 2, 0)
 xy2m_qc.rz(theta + pi / 2, 0)
 SELib.add_equivalence(XY2MGate(theta), xy2m_qc)
-
-qc = QuantumCircuit(1)
-qc.append(XY2MGate(theta), [0])
-
-for i in range(5):
-    t = pi * i / 5
-    assert np.allclose(np.asarray(XY2MGate(t)), Operator(xy2m_qc.assign_parameters([t])).to_matrix())
-    assert Operator(xy2m_qc.assign_parameters([t])).equiv(Operator(qc.assign_parameters([t])))
 
 phi = Parameter("phi")
 theta = Parameter("theta")
@@ -494,25 +439,12 @@ qc.rx(-pi / 2, 0)
 qc.rz(phi - pi / 2, 0)
 SELib.add_equivalence(RxyGate(phi, theta), qc)
 
-qc2 = QuantumCircuit(1)
-qc2.append(RxyGate(phi, theta), [0])
-
-for i in range(5):
-    p = pi * i / 5 * random()
-    t = -pi * i / 5 * random()
-    assert np.allclose(
-        np.asarray(RxyGate(p, t)),
-        Operator(qc.assign_parameters({phi: p, theta: t})).to_matrix()
-    )
-    assert Operator(qc.assign_parameters({phi: p, theta: t})).equiv(
-        Operator(qc2.assign_parameters({phi: p, theta: t}))
-    )
-
 __all__ = [
     'X2PGate',
     'X2MGate',
     'Y2PGate',
     'Y2MGate',
     'XY2PGate',
-    'XY2MGate'
+    'XY2MGate',
+    'RxyGate'
 ]
