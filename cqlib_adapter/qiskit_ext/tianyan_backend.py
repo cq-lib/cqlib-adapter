@@ -26,7 +26,7 @@ from enum import Enum, IntEnum
 from qiskit.circuit import QuantumCircuit, Parameter, Measure, Barrier
 from qiskit.circuit.library import standard_gates
 from qiskit.circuit.library.standard_gates import CZGate, RZGate, HGate, \
-    GlobalPhaseGate
+    GlobalPhaseGate, CXGate
 from qiskit.providers import BackendV2 as Backend, Options, JobV1, QubitProperties
 from qiskit.transpiler import Target, InstructionProperties
 
@@ -580,8 +580,8 @@ class TianYanSimulatorBackend(TianYanBackend):
             'measure': [Measure(), q_props],
         }
         ins_mapping_dict = {
-            'cz': {'instruction': CZGate, 'name': 'cz'},
-            'cx': {'instruction': standard_gates.CXGate, 'name': 'cx'},
+            'cz': {'instruction': CZGate(), 'properties': {None: None}},
+            'cx': {'instruction': CXGate(), 'properties': {None: None}},
             'barrier': {'instruction': Barrier, 'name': 'barrier'}
         }
         for gate in gates:
