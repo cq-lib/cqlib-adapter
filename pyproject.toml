@@ -32,7 +32,7 @@ keywords = [
 ]
 
 [tool.setuptools]
-packages = ["cqlib_adapter"]
+packages = ["cqlib_adapter", "cqlib_adapter.qiskit_ext"]
 
 [tool.setuptools.dynamic]
 version = { file = "cqlib_adapter/VERSION.txt" }
