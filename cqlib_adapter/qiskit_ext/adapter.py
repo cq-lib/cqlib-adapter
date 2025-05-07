@@ -59,6 +59,10 @@ def to_cqlib(qiskit_circuit: QiskitCircuit) -> CqlibCircuit:
             getattr(cqlib_circuit, operation.label)(*qs, *ps)
         elif hasattr(cqlib_circuit, operation.name):
             getattr(cqlib_circuit, operation.name)(*qs, *operation.params)
+        elif operation.name == 'tdg':
+            cqlib_circuit.td(*qs, *operation.params)
+        elif operation.name == 'sdg':
+            cqlib_circuit.sd(*qs, *operation.params)
         else:
             raise NotImplementedError(f"{operation.name} is not supported")
     for cl_bit in sorted(measure_qubits.keys()):
