@@ -21,7 +21,7 @@ import json
 import warnings
 from collections import namedtuple
 from datetime import datetime
-from enum import Enum, IntEnum
+from enum import IntEnum
 
 from qiskit.circuit import QuantumCircuit, Parameter, Measure, Barrier
 from qiskit.circuit.library import standard_gates
@@ -30,9 +30,9 @@ from qiskit.circuit.library.standard_gates import CZGate, RZGate, HGate, \
 from qiskit.providers import BackendV2 as Backend, Options, JobV1, QubitProperties
 from qiskit.transpiler import Target, InstructionProperties
 
-from .api_client import ApiClient
 from .adapter import to_cqlib
-from .gates import X2PGate, X2MGate, Y2MGate, Y2PGate, XY2MGate, XY2PGate
+from .api_client import ApiClient
+from .gates import X2PGate, X2MGate, Y2MGate, Y2PGate, XY2MGate, XY2PGate, RxyGate
 from .job import TianYanJob
 
 
@@ -576,6 +576,7 @@ class TianYanSimulatorBackend(TianYanBackend):
             'sd': [standard_gates.SdgGate(), q_props],
             't': [standard_gates.TGate(), q_props],
             'td': [standard_gates.TdgGate(), q_props],
+            'rxy': [RxyGate(Parameter('phi'), Parameter('theta')), q_props],
 
             'measure': [Measure(), q_props],
         }
@@ -589,5 +590,7 @@ class TianYanSimulatorBackend(TianYanBackend):
                 target.add_instruction(*ins_mapping_list[gate])
             elif gate in ins_mapping_dict:
                 target.add_instruction(**ins_mapping_dict[gate])
+            elif gate == 'id':
+                pass
             else:
                 warnings.warn(f'{gate} is not supported in simulator backend.')
