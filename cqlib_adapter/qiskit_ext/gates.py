@@ -32,7 +32,6 @@ from cqlib.circuits.gates.y import Y2P, Y2M
 from cqlib.circuits.gates.xy import XY2P, XY2M
 
 
-# X2P
 class X2PGate(Gate):
     """
     Custom quantum gate representing a positive X rotation by π/2.
@@ -74,7 +73,6 @@ class X2PGate(Gate):
         return np.asarray(X2P(), dtype=dtype)
 
 
-# X2M
 class X2MGate(Gate):
     """
     Custom quantum gate representing a negative X rotation by π/2.
@@ -116,7 +114,6 @@ class X2MGate(Gate):
         return np.asarray(X2M(), dtype=dtype)
 
 
-# Y2P
 class Y2PGate(Gate):
     """
     Custom quantum gate representing a positive Y rotation by π/2.
@@ -158,7 +155,6 @@ class Y2PGate(Gate):
         return np.asarray(Y2P(), dtype=dtype)
 
 
-# Y2M
 class Y2MGate(Gate):
     """
     Custom quantum gate representing a negative Y rotation by π/2.
@@ -200,7 +196,6 @@ class Y2MGate(Gate):
         return np.asarray(Y2M(), dtype=dtype)
 
 
-# XY2P
 class XY2PGate(Gate):
     """
     Custom quantum gate representing a positive XY rotation.
@@ -247,7 +242,6 @@ class XY2PGate(Gate):
         return np.asarray(XY2P(self.params[0]), dtype=dtype)
 
 
-# XY2M
 class XY2MGate(Gate):
     """
     Custom quantum gate representing a negative XY rotation.
@@ -358,6 +352,11 @@ y2p_qc.append(Y2PGate(), [0])
 # SELib.add_equivalence(RYGate(pi / 2), y2p_qc)
 assert np.allclose(np.asarray(RYGate(pi / 2)), Operator(y2p_qc).to_matrix())
 
+ry_qc = QuantumCircuit(1)
+ry_qc.ry(pi / 2, 0)
+SELib.add_equivalence(Y2PGate(), ry_qc)
+assert np.allclose(np.asarray(Y2PGate()), Operator(ry_qc).to_matrix())
+
 # Y
 y_qc = QuantumCircuit(1)
 y_qc.append(Y2PGate(), [0])
@@ -371,6 +370,11 @@ y2m_qc = QuantumCircuit(1)
 y2m_qc.append(Y2MGate(), [0])
 # SELib.add_equivalence(RYGate(-pi / 2), y2m_qc)
 assert np.allclose(np.asarray(RYGate(-pi / 2)), Operator(y2m_qc).to_matrix())
+
+ry_qc = QuantumCircuit(1)
+ry_qc.ry(-pi / 2, 0)
+SELib.add_equivalence(Y2MGate(), ry_qc)
+assert np.allclose(np.asarray(Y2MGate()), Operator(ry_qc).to_matrix())
 
 #  H gate
 h_decomp = QuantumCircuit(1)
@@ -402,6 +406,7 @@ xy2m_qc.rz(-pi / 2 - theta, 0)
 xy2m_qc.ry(pi / 2, 0)
 xy2m_qc.rz(theta + pi / 2, 0)
 SELib.add_equivalence(XY2MGate(theta), xy2m_qc)
+
 qc = QuantumCircuit(1)
 qc.append(XY2MGate(theta), [0])
 
