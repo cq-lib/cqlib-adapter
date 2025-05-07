@@ -19,6 +19,7 @@ validation to ensure the correctness of the gate definitions.
 """
 
 from math import pi
+from random import random
 
 import numpy as np
 from qiskit.quantum_info import Operator
@@ -30,6 +31,7 @@ from qiskit.circuit.equivalence_library import SessionEquivalenceLibrary as SELi
 from cqlib.circuits.gates.x import X2P, X2M
 from cqlib.circuits.gates.y import Y2P, Y2M
 from cqlib.circuits.gates.xy import XY2P, XY2M
+from cqlib.circuits.gates.rxy import RXY
 
 
 class X2PGate(Gate):
@@ -288,6 +290,73 @@ class XY2MGate(Gate):
         return np.asarray(XY2M(self.params[0]), dtype=dtype)
 
 
+class RxyGate(Gate):
+    """A parameterized two-axis rotation gate in the XY plane.
+
+    This gate implements a composite rotation consisting of Rz and Rx operations.
+    The rotation is parameterized by two angles (phi and theta) which control
+    the Z-axis rotations before and after the X-axis π/2 rotations.
+
+    Args:
+        phi (float | Parameter): Rotation angle (in radians) for initial Z-axis rotation.
+            Controls the phase offset in the composite rotation sequence.
+        theta (float | Parameter): Rotation angle (in radians) for middle Z-axis rotation.
+            Determines the main rotation magnitude between X-axis operations.
+        label (str, optional): Optional text label for gate identification. Defaults to None.
+
+    Example:
+        >>> import math
+       >>> from qiskit import QuantumCircuit
+        >>> qc = QuantumCircuit(1)
+        >>> qc.append(RxyGate(math.pi/3, math.pi/4), [0])
+    """
+
+    def __init__(self, phi: float | Parameter, theta: float | Parameter, label: str = None):
+        """
+        Initializes the RxyGate.
+
+        Args:
+            phi (float | Parameter): The rotation angle.
+            theta (float | Parameter): The rotation angle.
+            label (str, optional): A custom label for the gate. Defaults to None.
+        """
+        super().__init__("rxy", 1, [phi, theta], label=label)
+
+    def _define(self):
+        """Defines the quantum circuit for the RXY gate.
+
+        Implements gate using rotation sequence:
+        Rz(π/2 - φ) → Rx(π/2) → Rz(θ) → Rx(-π/2) → Rz(φ - π/2)
+        """
+        phi_ = Parameter("phi")
+        theta_ = Parameter("theta")
+        defn = QuantumCircuit(1)
+        defn.rz(pi / 2 - phi_, 0)
+        defn.rx(pi / 2, 0)
+        defn.rz(theta_, 0)
+        defn.rx(-pi / 2, 0)
+        defn.rz(phi_ - pi / 2, 0)
+        self._definition = defn
+
+    def __array__(self, dtype=None, copy=None):
+        """
+        Returns the matrix representation of the gate.
+
+        Args:
+            dtype: The data type of the array.
+            copy: Whether to avoid copying the array.
+
+        Returns:
+            np.ndarray: The matrix representation of the gate.
+
+        Raises:
+            ValueError: If copying cannot be avoided.
+        """
+        if copy is False:
+            raise ValueError("unable to avoid copy while creating an array as requested")
+        return np.asarray(RXY(self.params[0], self.params[1]), dtype=dtype)
+
+
 # Equivalence rules and validation
 # rx pi/2
 rx_qc = QuantumCircuit(1)
@@ -414,6 +483,30 @@ for i in range(5):
     t = pi * i / 5
     assert np.allclose(np.asarray(XY2MGate(t)), Operator(xy2m_qc.assign_parameters([t])).to_matrix())
     assert Operator(xy2m_qc.assign_parameters([t])).equiv(Operator(qc.assign_parameters([t])))
+
+phi = Parameter("phi")
+theta = Parameter("theta")
+qc = QuantumCircuit(1)
+qc.rz(pi / 2 - phi, 0)
+qc.rx(pi / 2, 0)
+qc.rz(theta, 0)
+qc.rx(-pi / 2, 0)
+qc.rz(phi - pi / 2, 0)
+SELib.add_equivalence(RxyGate(phi, theta), qc)
+
+qc2 = QuantumCircuit(1)
+qc2.append(RxyGate(phi, theta), [0])
+
+for i in range(5):
+    p = pi * i / 5 * random()
+    t = -pi * i / 5 * random()
+    assert np.allclose(
+        np.asarray(RxyGate(p, t)),
+        Operator(qc.assign_parameters({phi: p, theta: t})).to_matrix()
+    )
+    assert Operator(qc.assign_parameters({phi: p, theta: t})).equiv(
+        Operator(qc2.assign_parameters({phi: p, theta: t}))
+    )
 
 __all__ = [
     'X2PGate',
