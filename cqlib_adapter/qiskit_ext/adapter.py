@@ -17,9 +17,8 @@ This module provides classes and methods to adapt various interfaces,
 making them compatible with the expected input/output format.
 """
 
-from qiskit.circuit import QuantumCircuit as QiskitCircuit
-
 from cqlib import Circuit as CqlibCircuit
+from qiskit.circuit import QuantumCircuit as QiskitCircuit
 
 
 def to_cqlib(qiskit_circuit: QiskitCircuit) -> CqlibCircuit:
@@ -63,6 +62,8 @@ def to_cqlib(qiskit_circuit: QiskitCircuit) -> CqlibCircuit:
             cqlib_circuit.td(*qs, *operation.params)
         elif operation.name == 'sdg':
             cqlib_circuit.sd(*qs, *operation.params)
+        elif operation.name == 'global_phase':
+            pass
         else:
             raise NotImplementedError(f"{operation.name} is not supported")
     for cl_bit in sorted(measure_qubits.keys()):
