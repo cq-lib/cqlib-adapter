@@ -28,7 +28,7 @@ from qiskit.circuit.library import standard_gates
 from qiskit.circuit.library.standard_gates import CZGate, RZGate, HGate, \
     GlobalPhaseGate, CXGate
 from qiskit.providers import BackendV2 as Backend, Options, JobV1, QubitProperties
-from qiskit.transpiler import Target, InstructionProperties
+from qiskit.transpiler import Target, InstructionProperties, generate_preset_pass_manager
 
 from .adapter import to_cqlib
 from .api_client import ApiClient
@@ -36,6 +36,7 @@ from .gates import X2PGate, X2MGate, Y2MGate, Y2PGate, XY2MGate, XY2PGate, RxyGa
 from .job import TianYanJob
 
 
+# pylint: disable=invalid-name
 class BackendType(IntEnum):
     """Enum representing the type of backend (quantum computer or simulator)."""
     quantum_computer = 0
@@ -53,7 +54,6 @@ class BackendStatus(IntEnum):
 
 class CqlibAdapterError(Exception):
     """Base class for exceptions in this module."""
-    pass
 
 
 GateConfig = namedtuple('GateConfig', ['name', 'params', 'coupling_map'])
@@ -68,9 +68,11 @@ gate_parameters = {
 }
 
 
+# pylint: disable=too-many-instance-attributes
 class BackendConfiguration:
     """Class representing the configuration of a backend."""
 
+    # pylint: disable=too-many-arguments,too-many-positional-arguments, too-many-locals
     def __init__(
             self,
             backend_id: str,
@@ -128,12 +130,17 @@ class BackendConfiguration:
         """
         return BackendConfiguration(**data)
 
+    # pylint: disable=too-many-branches, too-many-locals
     @staticmethod
-    def from_api(data: dict[str: str | int | list]) -> "BackendConfiguration":
+    def from_api(
+            data: dict[str: str | int | list],
+            api_client: ApiClient
+    ) -> "BackendConfiguration":
         """Creates a BackendConfiguration instance from API data.
 
         Args:
             data (dict): The API data containing backend configuration.
+            api_client (ApiClient):
 
         Returns:
             BackendConfiguration: The created BackendConfiguration instance.
@@ -149,7 +156,7 @@ class BackendConfiguration:
             backend_type = BackendType.simulator
 
         if backend_type == BackendType.quantum_computer:
-            qpu = ApiClient().get_quantum_computer_config(backend_id)
+            qpu = api_client.get_quantum_computer_config(backend_id)
             qubits = [int(q[1:]) for q in qpu['qubits'] if q not in disabled_qubits]
             coupling_map = []
 
@@ -161,8 +168,8 @@ class BackendConfiguration:
                     continue
                 coupling_map.append([int(q0[1:]), int(q1[1:])])
         else:
-            qubits = [i for i in range(n_qubits)]
-            # todo: 全振幅仿真机，比特太多了。先限制一下
+            qubits = list(range(n_qubits))
+            # todo: 仿真机，比特太多了。先限制一下
             coupling_map = [[i, j] for i in range(min(n_qubits, 100)) for j in range(i)]
         basis_gates = []
         derivative_gates = []
@@ -289,6 +296,7 @@ class TianYanBackend(Backend):
             run_input,
             shots: int = 1024,
             readout_calibration: bool = True,
+            auto_transpile: bool = True,
             **options
     ) -> JobV1:
         """Submits a job to the backend.
@@ -296,7 +304,9 @@ class TianYanBackend(Backend):
         Args:
             run_input (QuantumCircuit | list[QuantumCircuit]): The circuit(s) to execute.
             shots (int, optional): The number of shots to execute. Defaults to 1024.
-            readout_calibration (bool, optional): Whether to perform readout calibration. Defaults to True.
+            readout_calibration (bool, optional): Whether to perform readout calibration.
+                Defaults to True.
+            auto_transpile (bool, optional): Automatically perform circuit compile on the backend.
             **options: Additional options for the job.
 
         Returns:
@@ -311,6 +321,10 @@ class TianYanBackend(Backend):
             circuits = run_input
         else:
             raise TypeError(f"Unsupported input type: {type(run_input)}")
+
+        if auto_transpile:
+            pm = generate_preset_pass_manager(backend=self)
+            circuits = [pm.run(qc) for qc in circuits]
 
         task_ids = self._api_client.submit_job(
             [to_cqlib(circ) for circ in circuits],
@@ -391,6 +405,7 @@ class TianYanQuantumBackend(TianYanBackend):
         self._update_barrier_gate(target)
         self._target = target
 
+    # pylint: disable=too-many-locals
     def _make_qubit_properties(self):
         """Creates qubit properties from the machine configuration.
 
