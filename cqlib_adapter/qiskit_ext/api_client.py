@@ -19,8 +19,8 @@ from datetime import datetime
 
 import requests
 from cqlib.circuits import Circuit
-from cqlib.quantum_platform import TianYanPlatform, QuantumLanguage
 from cqlib.exceptions import CqlibRequestError
+from cqlib.quantum_platform import TianYanPlatform, QuantumLanguage
 
 
 class ApiClient:
@@ -93,7 +93,8 @@ class ApiClient:
             params={'a': str(int(time.time())), 'apiCode': 'byUser', },
             headers={
                 'Accept': 'application/json, text/plain, */*',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0)'
+                              ' Gecko/20100101 Firefox/137.0',
                 'apiCode': 'byUser',
                 'requestTime': self._request_time()
             })
@@ -122,7 +123,8 @@ class ApiClient:
             },
             headers={
                 'Accept': 'application/json, text/plain, */*',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) '
+                              'Gecko/20100101 Firefox/137.0',
                 'apiCode': 'config',
                 'requestTime': self._request_time()
             })
@@ -187,7 +189,8 @@ class ApiClient:
             json={"query_ids": task_ids},
             headers={
                 'Accept': 'application/json, text/plain, */*',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) '
+                              'Gecko/20100101 Firefox/137.0',
                 'apiCode': 'config',
                 'requestTime': self._request_time(),
                 "basicToken": self.platform.access_token,
