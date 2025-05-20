@@ -10,14 +10,17 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
+"""
+Qiskit extension module for TianYan quantum platform integration.
+"""
 
 from .adapter import to_cqlib
 from .api_client import ApiClient
-from .gates import X2PGate, X2MGate, Y2PGate, Y2MGate, XY2MGate, XY2PGate
+from .gates import X2PGate, X2MGate, Y2PGate, Y2MGate, XY2MGate, XY2PGate, RxyGate
 from .job import TianYanJob
 from .sampler import TianYanSampler
-from .tianyan_provider import TianYanProvider
 from .tianyan_backend import TianYanBackend
+from .tianyan_provider import TianYanProvider
 
 __all__ = [
     "to_cqlib",
@@ -29,6 +32,7 @@ __all__ = [
     'Y2MGate',
     'XY2PGate',
     'XY2MGate',
+    'RxyGate',
 
     "TianYanJob",
     "TianYanSampler",

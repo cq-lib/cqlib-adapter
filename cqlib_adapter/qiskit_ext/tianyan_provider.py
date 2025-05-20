@@ -22,9 +22,9 @@ from pathlib import Path
 
 import dotenv
 
+from .api_client import ApiClient
 from .tianyan_backend import TianYanBackend, BackendConfiguration, CqlibAdapterError, \
     BackendStatus, TianYanQuantumBackend, TianYanSimulatorBackend
-from .api_client import ApiClient
 
 
 class TianYanProvider:
@@ -76,7 +76,7 @@ class TianYanProvider:
         """
         bs = []
         for data in self._api_client.get_backends():
-            cfg = BackendConfiguration.from_api(data)
+            cfg = BackendConfiguration.from_api(data, self._api_client)
             if online and cfg.status not in [BackendStatus.running, BackendStatus.calibrating]:
                 continue
             if simulator is not None and cfg.simulator != simulator:
@@ -108,7 +108,13 @@ class TianYanProvider:
         Raises:
             CqlibAdapterError: If the backend with the specified name is not found.
         """
-        for b in self.backends():
-            if b.name == name:
-                return b
+        for data in self._api_client.get_backends():
+            if data['code'] != name:
+                continue
+            cfg = BackendConfiguration.from_api(data, self._api_client)
+            if cfg.simulator:
+                backend = TianYanSimulatorBackend(configuration=cfg, api_client=self._api_client)
+            else:
+                backend = TianYanQuantumBackend(configuration=cfg, api_client=self._api_client)
+            return backend
         raise CqlibAdapterError(f"Backend {name} not found")

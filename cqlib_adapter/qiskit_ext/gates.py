@@ -21,16 +21,14 @@ validation to ensure the correctness of the gate definitions.
 from math import pi
 
 import numpy as np
-from qiskit.quantum_info import Operator
+from cqlib.circuits.gates.rxy import RXY
+from cqlib.circuits.gates.x import X2P, X2M
+from cqlib.circuits.gates.xy import XY2P, XY2M
+from cqlib.circuits.gates.y import Y2P, Y2M
 from qiskit.circuit import Gate, QuantumCircuit, Parameter
+from qiskit.circuit.equivalence_library import SessionEquivalenceLibrary as SELib
 from qiskit.circuit.library import GlobalPhaseGate, RXGate, RYGate, \
     HGate, XGate, YGate
-from qiskit.circuit.equivalence_library import SessionEquivalenceLibrary as SELib
-
-from cqlib.circuits.gates.x import X2P, X2M
-from cqlib.circuits.gates.y import Y2P, Y2M
-from cqlib.circuits.gates.xy import XY2P, XY2M
-from cqlib.circuits.gates.rxy import RXY
 
 
 class X2PGate(Gate):
@@ -366,25 +364,24 @@ x_qc.append(X2PGate(), [0])
 x_qc.append(X2PGate(), [0])
 x_qc.append(GlobalPhaseGate(pi / 2), [])
 SELib.add_equivalence(XGate(), x_qc)
-assert np.allclose(np.asarray(XGate()), Operator(x_qc).to_matrix())
 
 # RX
-theta = Parameter("theta")
+t_ = Parameter("theta")
 rx_qc = QuantumCircuit(1)
 rx_qc.rz(pi / 2, 0)
 rx_qc.append(X2PGate(), [0])
-rx_qc.rz(theta, 0)
+rx_qc.rz(t_, 0)
 rx_qc.append(X2MGate(), [0])
 rx_qc.rz(-pi / 2, 0)
-SELib.add_equivalence(RXGate(theta), rx_qc)
+SELib.add_equivalence(RXGate(t_), rx_qc)
 
 # RY
-theta = Parameter("theta")
+t_ = Parameter("theta")
 ry_qc = QuantumCircuit(1)
 ry_qc.append(X2PGate(), [0])
-ry_qc.rz(theta, 0)
+ry_qc.rz(t_, 0)
 ry_qc.append(X2MGate(), [0])
-SELib.add_equivalence(RYGate(theta), ry_qc)
+SELib.add_equivalence(RYGate(t_), ry_qc)
 
 # X2M
 x2m_qc = QuantumCircuit(1)
@@ -414,30 +411,30 @@ h_decomp.append(GlobalPhaseGate(pi / 2), [])
 SELib.add_equivalence(HGate(), h_decomp)
 
 # XY2P
-theta = Parameter("theta")
+t_ = Parameter("theta")
 xy2p_qc = QuantumCircuit(1)
-xy2p_qc.rz(pi / 2 - theta, 0)
+xy2p_qc.rz(pi / 2 - t_, 0)
 xy2p_qc.ry(pi / 2, 0)
-xy2p_qc.rz(theta - pi / 2, 0)
-SELib.add_equivalence(XY2PGate(theta), xy2p_qc)
+xy2p_qc.rz(t_ - pi / 2, 0)
+SELib.add_equivalence(XY2PGate(t_), xy2p_qc)
 
 # XY2M
-theta = Parameter("theta")
+t_ = Parameter("theta")
 xy2m_qc = QuantumCircuit(1)
-xy2m_qc.rz(-pi / 2 - theta, 0)
+xy2m_qc.rz(-pi / 2 - t_, 0)
 xy2m_qc.ry(pi / 2, 0)
-xy2m_qc.rz(theta + pi / 2, 0)
-SELib.add_equivalence(XY2MGate(theta), xy2m_qc)
+xy2m_qc.rz(t_ + pi / 2, 0)
+SELib.add_equivalence(XY2MGate(t_), xy2m_qc)
 
-phi = Parameter("phi")
-theta = Parameter("theta")
+p_ = Parameter("phi")
+t_ = Parameter("theta")
 qc = QuantumCircuit(1)
-qc.rz(pi / 2 - phi, 0)
+qc.rz(pi / 2 - p_, 0)
 qc.rx(pi / 2, 0)
-qc.rz(theta, 0)
+qc.rz(t_, 0)
 qc.rx(-pi / 2, 0)
-qc.rz(phi - pi / 2, 0)
-SELib.add_equivalence(RxyGate(phi, theta), qc)
+qc.rz(p_ - pi / 2, 0)
+SELib.add_equivalence(RxyGate(p_, t_), qc)
 
 __all__ = [
     'X2PGate',

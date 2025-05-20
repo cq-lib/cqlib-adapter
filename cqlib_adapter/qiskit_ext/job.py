@@ -21,23 +21,19 @@ import time
 from collections import defaultdict
 
 import numpy as np
+from cqlib.utils.laboratory_utils import LaboratoryUtils
 from qiskit.providers import JobV1, JobStatus
+from qiskit.providers.backend import Backend
 from qiskit.result import Result
 
-from qiskit.providers.backend import Backend
-
-from cqlib.utils.laboratory_utils import LaboratoryUtils
 from .api_client import ApiClient
 
 
 class TianYanJob(JobV1):
-    """A class representing a job executed on the TianYan quantum computing platform.
-
-    Attributes:
-        job_id (str): The unique identifier for the job.
-        backend (Backend): The backend where the job is executed.
-        api_client (ApiClient): The client for interacting with the API.
     """
+    A class representing a job executed on the TianYan quantum computing platform.
+    """
+
     def __init__(
             self,
             job_id: str,
@@ -50,7 +46,8 @@ class TianYanJob(JobV1):
         Args:
             job_id (str): The unique identifier for the job.
             backend (Backend, optional): The backend where the job is executed. Defaults to None.
-            api_client (ApiClient, optional): The client for interacting with the API. Defaults to None.
+            api_client (ApiClient, optional): The client for interacting with the API.
+                Defaults to None.
             **kwargs: Additional keyword arguments.
         """
         super().__init__(backend=backend, job_id=job_id, **kwargs)
@@ -60,7 +57,6 @@ class TianYanJob(JobV1):
 
     def submit(self):
         """Submit the job to the backend for execution."""
-        pass
 
     def result(self) -> Result:
         """Retrieves the results of the job.
@@ -141,23 +137,26 @@ class TianYanJob(JobV1):
 
     @staticmethod
     def to_counts(state01):
-        """Calculates the probability distribution of measurement outcomes for a given quantum state.
+        """Calculates the probability distribution of measurement outcomes for
+        a given quantum state.
 
         Args:
-            state01 (list): A one-dimensional or two-dimensional list representing the quantum state, with complex numbers as elements.
+            state01 (list): A one-dimensional or two-dimensional list representing
+                the quantum state, with complex numbers as elements.
 
         Returns:
-            dict: A dictionary where keys are binary strings representing measurement outcomes and values are their corresponding probabilities.
+            dict: A dictionary where keys are binary strings representing measurement
+                outcomes and values are their corresponding probabilities.
         """
         if isinstance(state01[0], bool):
             state01 = [state01]
         counts = defaultdict(int)
         state_01_t = np.transpose(state01)
         memory_list = []
-        for num in range(len(state_01_t)):
+        for s_01_t in state_01_t:
             k = 0
             for i in range(len(state01)):
-                k += state_01_t[num][i] * (2 ** i)
+                k += s_01_t[i] * (2 ** i)
             prob_state = hex(k)
             counts[prob_state] += 1
             memory_list.append(prob_state)

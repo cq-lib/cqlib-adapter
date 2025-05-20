@@ -24,11 +24,11 @@ Verification includes:
 - Job execution lifecycle management
 - Basic quantum operation correctness
 """
-
 import os
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, transpile
 
+from cqlib_adapter.qiskit_ext.sampler import TianYanSampler
 from cqlib_adapter.qiskit_ext.tianyan_provider import TianYanProvider
 
 
@@ -123,3 +123,17 @@ class TestBackend:
         job = backend.run([transpiled_qc], shots=3000)
         assert job.job_id()
         assert job.result().get_counts()
+
+    def test_sampler(self):
+        """
+        Validates batch circuit execution using TianYanSampler with custom options.
+        """
+        backend = self._provider.backend('tianyan_sw')
+        sampler = TianYanSampler(backend, options={"default_shots": 1100})
+        qc = QuantumCircuit(2)
+        qc.cx(0, 1)
+        qc.rx(1.2, 0)
+        qc.measure_all()
+
+        result = sampler.run([qc] * 3).result()
+        assert len(result) == 3

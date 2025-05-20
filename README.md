@@ -34,15 +34,12 @@ The following QCIS gates are added to Qiskit:
 
 ### Usage Example
 
+Log in to the [TianYan Lab](https://qc.zdxlz.com/), retrieve your `Connection Key` from the Dashboard page, 
+and replace `your_token` in the code below.
+
 ```python
-from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, transpile
-from cqlib_adapter.qiskit_ext import TianYanProvider
-
-# Initialize the TianYan provider
-provider = TianYanProvider(token='your_token')
-
-# Retrieve a specific backend (e.g., 'tianyan24')
-backend = provider.backend('tianyan24')
+from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
+from cqlib_adapter.qiskit_ext import X2PGate
 
 # Create a quantum circuit
 qs = QuantumRegister(2)
@@ -51,18 +48,62 @@ circuit = QuantumCircuit(qs, cs)
 circuit.x(qs[1])
 circuit.h(qs[0])
 circuit.cx(qs[0], qs[1])
+circuit.append(X2PGate(), [qs[0]])
 circuit.barrier(qs)
 circuit.measure(qs, cs)
 
-# Transpile the circuit for the backend
-transpiled_qc = transpile(circuit, backend=backend)
+circuit.draw()
+```
+
+Circuit Text Diagram:
+```text
+      ┌───┐     ┌─────┐ ░ ┌─┐   
+q0_0: ┤ H ├──■──┤ X2p ├─░─┤M├───
+      ├───┤┌─┴─┐└─────┘ ░ └╥┘┌─┐
+q0_1: ┤ X ├┤ X ├────────░──╫─┤M├
+      └───┘└───┘        ░  ║ └╥┘
+c0: 2/═════════════════════╩══╩═
+                           0  1 
+```
+
+
+#### 1. Backend mode
+```python
+from cqlib_adapter.qiskit_ext import TianYanProvider
+
+# Initialize the TianYan provider
+provider = TianYanProvider(token='your_token')
+
+# Retrieve a specific backend (e.g., 'tianyan176-2')
+backend = provider.backend('tianyan176-2')
 
 # Run the circuit on the backend
-job = backend.run([transpiled_qc], shots=3000, readout_calibration=True)
+job = backend.run([circuit], shots=3000)
 
 # Retrieve and print the results
 print(f'Job ID: {job.job_id()}')
 print(f'Job Result: {job.result().get_counts()}')
+```
+
+#### 2. Sampler mode
+```python
+from cqlib_adapter.qiskit_ext import TianYanProvider, TianYanSampler
+
+# Initialize the TianYan provider
+provider = TianYanProvider(token='your_token')
+
+# Retrieve a specific backend (e.g., 'tianyan24')
+backend = provider.backend('tianyan24')
+
+# Run the circuit on the backend
+job = TianYanSampler(backend=backend).run([circuit], shots=3000)
+
+# Retrieve and print the results
+print(f'Job ID: {job.job_id()}')
+print(f'Job Result: {job.result()}')
+# c0 is the default register name
+# cs = ClassicalRegister(2)
+print(f'Counts: {job.result()[0].data.c0.get_counts()}')
 ```
 
 ## License
