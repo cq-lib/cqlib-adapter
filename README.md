@@ -39,7 +39,7 @@ and replace `your_token` in the code below.
 
 ```python
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
-from qiskit_ext import X2PGate
+from cqlib_adapter.qiskit_ext import X2PGate
 
 # Create a quantum circuit
 qs = QuantumRegister(2)
