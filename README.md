@@ -1,115 +1,105 @@
 # Cqlib Adapter
 
-## Installation
+Cqlib Adapter 是一个用于将 Qiskit 量子电路转换为 Cqlib 兼容格式的工具，它允许用户通过 TianYan 平台访问实际的量子计算机和模拟器。
 
-Install the package using pip:
+## 安装
+
+要安装 Cqlib Adapter，请使用 pip:
 
 ```bash
 pip install cqlib-adapter
 ```
 
-## 1. Qiskit Ext
+## 特性
 
-This project provides a Qiskit adapter for the TianYan quantum computing platform. It includes custom quantum gates and
-integrates with the TianYan backend to enable seamless execution of quantum circuits.
+- **QCIS 门支持**：支持多种量子门操作，包括 X2P, X2M, Y2P, Y2M, XY2P, XY2M 和 Rxy 门。
+- **TianYan 平台集成**：可以通过 TianYan 提供商轻松获取并使用特定的后端设备。
+- **采样器模式**：支持在指定的后端上运行量子电路，并获取结果。
 
-### Features
+## 使用示例
 
-- **Custom Quantum Gates**: Adds custom gates like `X2P`, `X2M`, `Y2P`, `Y2M`, `XY2P`, and `XY2M` to Qiskit.
-- **TianYan Backend Integration**: Supports execution of quantum circuits on TianYan quantum computers and simulators.
-- **Transpilation**: Automatically transpiles Qiskit circuits to be compatible with TianYan backends.
+### 创建量子电路
 
-### QCIS Gates
-
-[QCIS Instruction Manual](https://qc.zdxlz.com/learn/#/resource/informationSpace?lang=zh&cId=/mkdocs/zh/appendix/QCIS_instruction_set.html)
-
-The following QCIS gates are added to Qiskit:
-
-- **X2P**: Positive X rotation by π/2.
-- **X2M**: Negative X rotation by π/2.
-- **Y2P**: Positive Y rotation by π/2.
-- **Y2M**: Negative Y rotation by π/2.
-- **XY2P**: Positive XY rotation by a parameterized angle.
-- **XY2M**: Negative XY rotation by a parameterized angle.
-
-### Usage Example
-
-Log in to the [TianYan Lab](https://qc.zdxlz.com/), retrieve your `Connection Key` from the Dashboard page, 
-and replace `your_token` in the code below.
+您可以使用 Qiskit 创建一个量子电路，并使用 Cqlib Adapter 将其转换为 Cqlib 格式。
 
 ```python
-from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
-from cqlib_adapter.qiskit_ext import X2PGate
+from qiskit import QuantumCircuit
+from cqlib_adapter.qiskit_ext.adapter import to_cqlib
 
-# Create a quantum circuit
-qs = QuantumRegister(2)
-cs = ClassicalRegister(2)
-circuit = QuantumCircuit(qs, cs)
-circuit.x(qs[1])
-circuit.h(qs[0])
-circuit.cx(qs[0], qs[1])
-circuit.append(X2PGate(), [qs[0]])
-circuit.barrier(qs)
-circuit.measure(qs, cs)
+# 创建一个简单的量子电路
+qc = QuantumCircuit(2)
+qc.h(0)
+qc.cx(0, 1)
 
-circuit.draw()
+# 转换为 Cqlib 格式
+cqlib_circuit = to_cqlib(qc)
 ```
 
-Circuit Text Diagram:
-```text
-      ┌───┐     ┌─────┐ ░ ┌─┐   
-q0_0: ┤ H ├──■──┤ X2p ├─░─┤M├───
-      ├───┤┌─┴─┐└─────┘ ░ └╥┘┌─┐
-q0_1: ┤ X ├┤ X ├────────░──╫─┤M├
-      └───┘└───┘        ░  ║ └╥┘
-c0: 2/═════════════════════╩══╩═
-                           0  1 
-```
+#### 后端模式
 
+1. **初始化 TianYan 提供商**
 
-#### 1. Backend mode
-```python
-from cqlib_adapter.qiskit_ext import TianYanProvider
+   ```python
+   from cqlib_adapter.qiskit_ext.tianyan_provider import TianYanProvider
 
-# Initialize the TianYan provider
-provider = TianYanProvider(token='your_token')
+   provider = TianYanProvider(token='your_token')
+   ```
 
-# Retrieve a specific backend (e.g., 'tianyan176-2')
-backend = provider.backend('tianyan176-2')
+2. **获取特定后端**
 
-# Run the circuit on the backend
-job = backend.run([circuit], shots=3000)
+   ```python
+   backend = provider.backend(name='tianyan176-2')
+   ```
 
-# Retrieve and print the results
-print(f'Job ID: {job.job_id()}')
-print(f'Job Result: {job.result().get_counts()}')
-```
+3. **在后端上运行电路**
 
-#### 2. Sampler mode
-```python
-from cqlib_adapter.qiskit_ext import TianYanProvider, TianYanSampler
+   ```python
+   job = backend.run(qc)
+   ```
 
-# Initialize the TianYan provider
-provider = TianYanProvider(token='your_token')
+4. **获取并打印结果**
 
-# Retrieve a specific backend (e.g., 'tianyan24')
-backend = provider.backend('tianyan24')
+   ```python
+   result = job.result()
+   print(result.get_counts())
+   ```
 
-# Run the circuit on the backend
-job = TianYanSampler(backend=backend).run([circuit], shots=3000)
+#### 采样器模式
 
-# Retrieve and print the results
-print(f'Job ID: {job.job_id()}')
-print(f'Job Result: {job.result()}')
-# c0 is the default register name
-# cs = ClassicalRegister(2)
-print(f'Counts: {job.result()[0].data.c0.get_counts()}')
-```
+1. **初始化 TianYan 提供商**
 
-## License
+   ```python
+   provider = TianYanProvider(token='your_token')
+   ```
 
-This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
+2. **获取特定后端**
 
-## Contributing
+   ```python
+   backend = provider.backend(name='tianyan24')
+   ```
 
-Contributions are welcome! Please open an issue or submit a pull request for any improvements or bug fixes.
+3. **在后端上运行电路**
+
+   ```python
+   from cqlib_adapter.qiskit_ext.sampler import TianYanSampler
+
+   sampler = TianYanSampler(backend)
+   job = sampler.run([qc])
+   ```
+
+4. **获取并打印结果**
+
+   ```python
+   result = job.result()
+   print(result)
+   ```
+
+注意：`c0` 是默认的寄存器名称。
+
+## 许可证
+
+本项目采用 MIT 许可证。详情请参阅 [LICENSE](LICENSE) 文件。
+
+## 贡献
+
+欢迎贡献代码和反馈。请提交 PR 或 issue 到 [Gitee 仓库](https://gitee.com/cq-lib/cqlib-adapter)。
