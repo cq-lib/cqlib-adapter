@@ -8,12 +8,12 @@ import json
 from cqlib.utils import qasm2
 from os import path
 from cqlib.mapping import transpile_qcis
-from cqlib.simulator import SimpleSimulator, StatevectorSimulator
+from cqlib.simulator import StatevectorSimulator
 from typing import Union, List, Dict
 from pennylane.tape import QuantumScript
-from pennylane.gradients import param_shift
 
-login_key = "KEY"
+
+
 class CQLibDevice(Device):
     short_name = 'cqlib.device'
     pennylane_requires = '0.42.1'
@@ -21,17 +21,13 @@ class CQLibDevice(Device):
     author = 'Ky'
     config_filepath = path.join(path.dirname(__file__), "cqlib_config.toml")
 
-    def __init__(self, wires, shots=None, cqlib_backend_name="default", **kwargs):
+    def __init__(self, wires, shots=None, cqlib_backend_name="default", login_key = None):
         super().__init__(wires=wires, shots=shots)
         self.num_wires = wires
         self.num_shots = shots
         self.machine_name = cqlib_backend_name
-        
-        self.cqlib_backend = TianYanPlatform(login_key=login_key, machine_name=cqlib_backend_name)
-
-
-        # self._gradient_transform = param_shift
-        # self._gradient_kwargs = {}
+        if cqlib_backend_name != "default":
+            self.cqlib_backend = TianYanPlatform(login_key=login_key, machine_name=cqlib_backend_name)
     def name(self):
         return 'CQLib Quantum Device'
     @classmethod
@@ -53,10 +49,6 @@ class CQLibDevice(Device):
                 "torch": "default.qubit.torch",
                 "jax": "default.qubit.jax",
             },
-            
-            # ✅ 新增梯度相关字段
-            supports_derivatives=True,           # 表明支持梯度
-            grad_methods={"device": True}        # 支持 diff_method="device"
         )
         
         return capabilities
@@ -232,73 +224,6 @@ class CQLibDevice(Device):
         }
         return getattr(op, "name", None) in supported_ops
         
-    def __repr__(self):
-        return f"<{self.name()} device (wires={self.num_wires}, shots={self.shots})>"
-    
-    def gradient(self, tape, **kwargs):
-        """
-        输入：
-            tape: QNode 的量子操作序列
-        返回：
-            对每个可微参数的梯度
-        """
-        grads = []
-        # 遍历 tape 中的参数
-        for op in tape.operations:
-            for i, param in enumerate(op.parameters):
-                # 这里用参数移位法举例
-                shift = np.pi/2
-                op.parameters[i] += shift
-                forward_plus = self.execute(tape)
-                op.parameters[i] -= 2*shift
-                forward_minus = self.execute(tape)
-                op.parameters[i] += shift  # 复原
-
-                grad = (forward_plus - forward_minus) / 2.0
-                grads.append(grad)
-        return np.array(grads)
-
-    def compute_derivatives(self, circuits: QuantumScriptOrBatch):
-        if isinstance(circuits, qml.tape.QuantumScript):
-            circuits = [circuits]
-        
-        gradients = []
-        for circuit in circuits:
-            params = circuit.get_parameters()
-            grad = np.zeros(len(params))
-            
-            for i in range(len(params)):
-                # 创建参数移位后的电路
-                shifted_plus = circuit.copy()
-                shifted_minus = circuit.copy()
-                
-                # 正确设置参数
-                new_params_plus = params.copy()
-                new_params_minus = params.copy()
-                new_params_plus[i] += np.pi/2
-                new_params_minus[i] -= np.pi/2
-                
-                shifted_plus.set_parameters(new_params_plus)
-                shifted_minus.set_parameters(new_params_minus)
-                
-                # 执行移位电路
-                res_plus = self.execute(shifted_plus)[0]  # 确保获取标量结果
-                res_minus = self.execute(shifted_minus)[0]
-                
-                # 标准参数移位公式
-                grad[i] = (res_plus - res_minus) / 2
-            
-            gradients.append(grad)
-        
-        return gradients[0] if len(gradients) == 1 else gradients
-    def supports_operation(self, op):
-        supported_ops = {"RX", "RY", "CNOT"}  # 根据硬件调整
-        return getattr(op, "name", None) in supported_ops
-    
-    def supports_derivatives(self, execution_config=None, circuit=None):
-        """声明设备支持导数计算"""
-        return False
-    
     def __repr__(self):
         return f"<{self.name()} device (wires={self.num_wires}, shots={self.shots})>"
 
