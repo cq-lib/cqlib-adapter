@@ -13,7 +13,7 @@ from typing import Union, List, Dict
 from pennylane.tape import QuantumScript
 from pennylane.gradients import param_shift
 
-login_key = "ZtQYpi6GVW24lrSOpauj16mRCAFrWN/3Et4xJjhn7dg="
+login_key = "KEY"
 class CQLibDevice(Device):
     short_name = 'cqlib.device'
     pennylane_requires = '0.42.1'
