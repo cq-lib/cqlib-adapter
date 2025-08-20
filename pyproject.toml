@@ -1,5 +1,6 @@
 [project]
 name = "cqlib-adapter"
+version = "0.1.0"
 description = "Cqlib adapter"
 authors = [
     { name = "Gao Jianjian", email = "jianjian001@outlook.com" }
