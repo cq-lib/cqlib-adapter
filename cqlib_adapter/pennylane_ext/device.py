@@ -16,7 +16,7 @@ from pennylane.tape import QuantumScript
 
 class CQLibDevice(Device):
     short_name = 'cqlib.device'
-    pennylane_requires = '0.42.1'
+    pennylane_requires = '>=0.42.1'
     version = '0.1.0'
     author = 'Ky'
     config_filepath = path.join(path.dirname(__file__), "cqlib_config.toml")
