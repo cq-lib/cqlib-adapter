@@ -17,16 +17,7 @@ params = np.array([0.5, 0.8], requires_grad=True)
 # 初始化设备
 def test(cqlib_backend_name):
     dev = qml.device('cqlib.device', wires=2, shots=500, cqlib_backend_name=cqlib_backend_name)
-
     # 定义一个简单的量子电路
-    # @qml.qnode(dev)
-    # def circuit(params):
-    #     qml.RX(params[0], wires=0)
-    #     qml.RY(params[1], wires=1)
-    #     qml.CNOT(wires=[0, 1])
-    #     return qml.expval(qml.PauliZ(0))
-
-
     @qml.qnode(dev)
     def circuit_probs(params):
         qml.RX(params[0], wires=0)
@@ -41,7 +32,7 @@ def test(cqlib_backend_name):
         qml.CNOT(wires=[0, 1])
         return qml.expval(qml.PauliZ(0))  # 返回期望值
 
-    params = np.array([0.5, 0.8], requires_grad=True)
+    params = np.array([0.5, 0.8])
     probs = circuit_probs(params)
     expval = circuit_expval(params)
     print("概率分布:", probs)
