@@ -1,5 +1,6 @@
 [project]
 name = "cqlib-adapter"
+version = "0.1.0"
 description = "Cqlib adapter"
 authors = [
     { name = "Gao Jianjian", email = "jianjian001@outlook.com" }
@@ -7,7 +8,10 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
-dynamic = ["version", "dependencies"]
+dependencies = [
+    "pennylane>=0.36.0",
+    "cqlib"
+]
 classifiers = [
     "Environment :: Console",
     "Operating System :: MacOS",
@@ -24,6 +28,7 @@ classifiers = [
 keywords = [
     "cqlib",
     "cqlib adapter",
+    "pennylane",
     "quantum circuit",
     "quantum computing",
     "quantum programming language",
@@ -31,12 +36,15 @@ keywords = [
     "sdk",
 ]
 
-[tool.setuptools]
-packages = ["cqlib_adapter", "cqlib_adapter.qiskit_ext"]
+[project.entry-points."pennylane.plugins"]
+"cqlib.device" = "cqlib_adapter.pennylane_ext.device:CQLibDevice"
 
-[tool.setuptools.dynamic]
-version = { file = "cqlib_adapter/VERSION.txt" }
-dependencies = { file = "requirements.txt" }
+[tool.setuptools]
+packages = ["cqlib_adapter", "cqlib_adapter.qiskit_ext", "cqlib_adapter.pennylane_ext"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"cqlib_adapter.pennylane_ext" = ["cqlib_config.toml"]
 
 [build-system]
 requires = ["setuptools>=77"]

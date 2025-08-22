@@ -106,6 +106,50 @@ print(f'Job Result: {job.result()}')
 print(f'Counts: {job.result()[0].data.c0.get_counts()}')
 ```
 
+## PennyLane Ext
+This project provides a PennyLane device adapter for the CQLib quantum computing framework. It enables seamless execution of PennyLane quantum circuits on various CQLib backends, including TianYan quantum hardware and simulators.
+
+### Features
+
+- **Multiple Backend Support**: Supports execution on TianYan quantum hardware, cloud simulators, and local simulators
+- **Unified Interface**: No need to call cqlib directly - all configuration is done through PennyLane device settings
+
+### Supported TianYan Backends
+#### Quantum Hardware
+**tianyan24**, **tianyan504**, **tianyan176-2**, **tianyan176**
+
+#### Cloud Simulators
+**tianyan_sw**, **tianyan_s**, **tianyan_tn**, **tianyan_tnn**, **tianyan_sa**, **tianyan_swn**
+
+#### Local Simulator
+**default (local simulator)**
+
+
+### Usage Example
+```python
+import pennylane as qml
+from pennylane import numpy as np
+
+TOKEN = "your_token"
+dev = qml.device('cqlib.device', wires=2, shots=500, cqlib_backend_name="default",login_key = TOKEN)
+
+
+@qml.qnode(dev, diff_method="parameter-shift")
+def circuit(params):
+    qml.RX(params[0], wires=0)
+    qml.RY(params[1], wires=1)
+    qml.CNOT(wires=[0, 1])
+    return qml.expval(qml.PauliY(0))
+params = np.array([0.5, 0.8], requires_grad=True)
+
+opt = qml.GradientDescentOptimizer(stepsize=0.1)
+steps = 10
+for i in range(steps):
+    params = opt.step(circuit, params)
+
+    print(f"step {i + 1}: paras = {params}, exps = {circuit(params)}")
+```
+
 ## License
 
 This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
