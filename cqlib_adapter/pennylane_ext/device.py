@@ -93,6 +93,19 @@ class CQLibDevice(Device):
         results = []  # 存储所有线路的结果
         
         for circuit in circuits:
+            # 在生成 QASM 前，对 PauliX/PauliY 的观测插入换基
+            new_ops = list(circuit.operations)
+            for meas in circuit.measurements:
+                if isinstance(meas, qml.measurements.ExpectationMP):
+                    if meas.obs.name == "PauliX":
+                        # 在目标比特插入 H 门
+                        new_ops.append(qml.Hadamard(wires=meas.obs.wires))
+                    elif meas.obs.name == "PauliY":
+                        # 插入 S† 和 H
+                        new_ops.append(qml.adjoint(qml.S)(wires=meas.obs.wires))
+                        new_ops.append(qml.Hadamard(wires=meas.obs.wires))
+            # 重新构建量子线路（保持测量不变）
+            circuit = qml.tape.QuantumScript(new_ops, circuit.measurements, shots=circuit.shots)
             # 将线路转换为QCIS格式
             qasm_str = circuit.to_openqasm()  # 转换为OpenQASM字符串
             cqlib_cir = qasm2.loads(qasm_str)  # 加载为CQLib线路对象
@@ -164,8 +177,8 @@ class CQLibDevice(Device):
 
     def _process_expectation(self, meas, raw_result) -> float:
         """处理期望值测量"""
-        # 目前只支持PauliZ的期望
-        if meas.obs.name != "PauliZ":
+        # 目前只支持Pauli X Y Z的期望
+        if meas.obs.name not in ["PauliZ", "PauliX", "PauliY"]:
             raise NotImplementedError(f"Expectation for {meas.obs.name} is not supported")
         
         # 根据结果类型选择处理方法

@@ -12,7 +12,7 @@ def circuit(params):
     qml.RX(params[0], wires=0)
     qml.RY(params[1], wires=1)
     qml.CNOT(wires=[0, 1])
-    return qml.expval(qml.PauliZ(0))
+    return qml.expval(qml.PauliY(0))
 params = np.array([0.5, 0.8], requires_grad=True)
 # 初始化设备
 def test(cqlib_backend_name):
