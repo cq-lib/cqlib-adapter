@@ -16,7 +16,7 @@ import json
 import os
 from typing import Dict, List, Union
 
-import cqlib
+from pennylane.ops.op_math import Sum, Prod, SProd
 import numpy as np
 import pennylane as qml
 from cqlib import TianYanPlatform
@@ -36,7 +36,6 @@ class CQLibDevice(Device):
 
     # Device metadata
     short_name = "cqlib.device"
-    
     config_filepath = os.path.join(os.path.dirname(__file__), "cqlib_config.toml")
 
     def __init__(self, wires, shots=None, cqlib_backend_name="default", login_key=None):
@@ -112,13 +111,6 @@ class CQLibDevice(Device):
         for circuit in circuits:
             # Insert basis change gates for PauliX/PauliY measurements
             new_ops = list(circuit.operations)
-            for measurement in circuit.measurements:
-                if isinstance(measurement, qml.measurements.ExpectationMP):
-                    if measurement.obs.name == "PauliX":
-                        new_ops.append(qml.Hadamard(wires=measurement.obs.wires))
-                    elif measurement.obs.name == "PauliY":
-                        new_ops.append(qml.S(wires=measurement.obs.wires).inv())
-                        new_ops.append(qml.Hadamard(wires=measurement.obs.wires))
 
             # Convert circuit to QCIS format
             qasm_str = circuit.to_openqasm()
@@ -214,7 +206,7 @@ class CQLibDevice(Device):
         results = []
         for measurement in circuit.measurements:
             if isinstance(measurement, qml.measurements.ExpectationMP):
-                results.append(self._process_expectation(measurement, raw_result))
+                results.append(self._process_expectation(measurement, raw_result, circuit))
             elif isinstance(measurement, qml.measurements.ProbabilityMP):
                 results.append(self._process_probability(measurement, raw_result))
             else:
@@ -225,32 +217,172 @@ class CQLibDevice(Device):
         # Return single result directly if only one measurement
         return results[0] if len(results) == 1 else results
 
-    def _process_expectation(self, measurement, raw_result) -> float:
-        """Processes expectation value measurements.
+    def _process_expectation(self, measurement, raw_result, circuit=None) -> float:
+        """Processes expectation value measurements."""
+        obs = measurement.obs
 
-        Args:
-            measurement: Expectation measurement operation.
-            raw_result: Raw result data.
+        # 统一把 circuit 传下去（用于需要重跑的情况）
+        return self._expval_recursive(obs, raw_result, circuit)
 
-        Returns:
-            float: Processed expectation value.
+    def _expval_recursive(self, obs, raw_result, circuit):
+        # Hamiltonian（旧版常见）
+        if isinstance(obs, qml.Hamiltonian):
+            total = 0.0
+            for coeff, term in zip(obs.coeffs, obs.ops):
+                total += coeff * self._expval_recursive(term, raw_result, circuit)
+            return total
 
-        Raises:
-            NotImplementedError: If expectation for non-PauliZ observables is requested.
-            ValueError: If raw_result type is unsupported.
-        """
-        if measurement.obs.name != "PauliZ":
-            raise NotImplementedError(
-                f"Expectation for {measurement.obs.name} is not supported"
-            )
+        # 和：Sum(op1, op2, ...)
+        if isinstance(obs, Sum):
+            return sum(self._expval_recursive(term, raw_result, circuit) for term in obs.operands)
 
-        if isinstance(raw_result, list):
-            return self.process_results(raw_result)
-        elif isinstance(raw_result, dict):
-            local_expectation = self.process_results_local(raw_result)
-            return local_expectation[measurement.wires[0]]
+        # 张量积：Prod(op1, op2, ...)
+        if isinstance(obs, Prod):
+            # 注意：纠缠态下 ⟨A⊗B⟩ ≠ ⟨A⟩⟨B⟩
+            # 我们要把整个张量算符当成一个“Pauli 字符串”整体来算
+            return self._expval_pauli_tensor(obs.operands, raw_result, circuit)
+
+        # 标量乘：SProd(c, op)
+        if isinstance(obs, SProd):
+            return float(obs.scalar) * self._expval_recursive(obs.base, raw_result, circuit)
+
+        # 单一可观测量（PauliX/Y/Z/Identity）
+        return self._process_single_observable(obs, raw_result, circuit)
+    
+
+    def _process_single_observable(self, obs, raw_result, circuit=None) -> float:
+        name = getattr(obs, "name", None)
+
+        # 恒等算符：返回 1.0
+        if name in ("Identity", "IdentityMP"):
+            return 1.0
+
+        # 单比特 Pauli：Z/X/Y
+        if name in ("PauliZ", "PauliX", "PauliY"):
+            # 单比特时，我们可以把它当作长度为1的“Pauli 字符串”统一处理
+            return self._expval_pauli_tensor([obs], raw_result, circuit)
+
+        # 其它算符（如 Projector、Hermitian 等）当前不支持
+        raise NotImplementedError(f"Expectation for {name} is not supported")
+    
+
+    def _expval_pauli_tensor(self, operands, raw_result, circuit):
+        """计算一个 Pauli 张量（可能跨多比特，可能包含 X/Y/Z）的期望值。"""
+
+        # 收集每个算符的 (axis, wire)
+        axes = []  # list of ('X'/'Y'/'Z', int_wire)
+        for term in operands:
+            n = getattr(term, "name", None)
+            if n == "PauliX":
+                axes.append(("X", term.wires[0]))
+            elif n == "PauliY":
+                axes.append(("Y", term.wires[0]))
+            elif n == "PauliZ":
+                axes.append(("Z", term.wires[0]))
+            elif n in ("Identity", "IdentityMP"):
+                # 对应位恒等不影响乘积
+                continue
+            else:
+                raise NotImplementedError(f"Unsupported operator in tensor: {n}")
+
+        if not axes:
+            return 1.0
+
+        # 情况 A：全是 Z —— 直接用已有 raw_result（一次执行的计数/概率）
+        if all(ax == "Z" for ax, _ in axes):
+            return self._expval_zz_string_from_raw(raw_result, [w for _, w in axes])
+
+        # 情况 B：包含 X/Y —— 需要按该项做基变换重跑一次
+        if circuit is None:
+            # 为了健壮：如果未传入 circuit，我们无法重跑，只能报错
+            raise NotImplementedError("X/Y terms require circuit to re-execute with basis change")
+
+        return self._expval_via_basis_rotation(circuit, axes)
+    
+    def _expval_zz_string_from_raw(self, raw_result, wires):
+        """从 raw_result（dict 或 list 包含 probability）计算 Z⊗Z⊗... 的期望值。"""
+        if isinstance(raw_result, dict):
+            total = sum(raw_result.values())
+            if total == 0:
+                return 0.0
+            acc = 0.0
+            for bitstring, cnt in raw_result.items():
+                # 注意你的位序：你此前用的是 bitstring[::-1]
+                eigen = 1
+                for w in wires:
+                    bit = int(bitstring[-w-1])  # 低位是 wire 0
+                    eigen *= (1 if bit == 0 else -1)
+                acc += eigen * cnt
+            return acc / total
+
+        elif isinstance(raw_result, list):
+            # 硬件/云返回 probability JSON（字符串或 dict）
+            prob_dict = raw_result[0]["probability"]
+            if isinstance(prob_dict, str):
+                prob_dict = json.loads(prob_dict)
+
+            acc = 0.0
+            for bitstring, p in prob_dict.items():
+                eigen = 1
+                for w in wires:
+                    bit = int(bitstring[-w-1])
+                    eigen *= (1 if bit == 0 else -1)
+                acc += eigen * p
+            return acc
+
         else:
             raise ValueError(f"Unsupported raw_result type: {type(raw_result)}")
+        
+    
+    def _expval_via_basis_rotation(self, circuit: QuantumScript, axes):
+        """对包含 X/Y 的 Pauli 字符串，复制电路、加入对应基变换并执行一次，再用 Z 基统计计算期望。"""
+
+        # 1) 复制原有操作
+        new_ops = list(circuit.operations)
+
+        # 2) 在对应 wire 上加入基变换
+        for ax, w in axes:
+            if ax == "X":
+                new_ops.append(qml.Hadamard(wires=w))
+            elif ax == "Y":
+                new_ops.append(qml.adjoint(qml.S)(wires=w))
+                new_ops.append(qml.Hadamard(wires=w))
+            # Z 不需要加门
+
+        # 3) 构造测量：在所有涉及的 wires 上做 Probability（拿到全局分布最安全）
+        #    也可以只测所有 qubits 的概率，保持简单：我们直接测全体概率
+        new_measurements = [qml.probs(wires=range(self.num_wires))]
+
+        # 4) 组装新 tape 并执行（重用你原有的 QASM 转换/后端路径）
+        rotated_circuit = qml.tape.QuantumScript(new_ops, new_measurements, shots=circuit.shots)
+
+        # —— 以下与 execute() 里一致：转换为 QCIS 并执行
+        qasm_str = rotated_circuit.to_openqasm()
+        cqlib_circuit = qasm2.loads(qasm_str)
+        cqlib_qcis = cqlib_circuit.qcis
+
+        if self._is_tianyan_hardware():
+            compiled_circuit = transpile_qcis(cqlib_qcis, self.cqlib_backend)
+            query_id = self.cqlib_backend.submit_experiment(compiled_circuit[0].qcis, num_shots=self.num_shots)
+            raw = self.cqlib_backend.query_experiment(query_id, readout_calibration=True)
+            prob = extract_probability(raw, num_wires=self.num_wires)
+        elif self._is_tianyan_simulator():
+            query_id = self.cqlib_backend.submit_experiment(cqlib_qcis, num_shots=self.num_shots)
+            raw = self.cqlib_backend.query_experiment(query_id)
+            prob = extract_probability(raw, num_wires=self.num_wires)
+        else:
+            sim = StatevectorSimulator(cqlib_circuit)
+            raw = sim.sample()  # dict: bitstring -> count
+            # 本地模拟器时直接从计数算
+            return self._expval_zz_string_from_raw(raw, [w for _, w in axes])
+
+        # 硬件/云：prob 是 dict[str_bitstring] -> float
+        # 组合成 list 形式以复用 _expval_zz_string_from_raw 的 list 分支逻辑
+        raw_list = [{"probability": prob}]
+        return self._expval_zz_string_from_raw(raw_list, [w for _, w in axes])
+
+
+
 
     def _process_probability(self, measurement, raw_result) -> np.ndarray:
         """Processes probability measurements.
@@ -389,7 +521,7 @@ class CQLibDevice(Device):
         Returns:
             str: String representation of the device.
         """
-        return f"<{self.name()} device (wires={self.num_wires}, shots={self.shots})>"
+        return f"<{self.name} device (wires={self.num_wires}, shots={self.shots})>"
 
 
 def extract_probability(
@@ -400,7 +532,7 @@ def extract_probability(
     Args:
         json_data: JSON data containing measurement results, expected to be a list
                    containing dictionaries with 'probability' field.
-        num_wires: Number of quantum wires (qubits) in the circuit.
+        num_wires: Number of quantum wires (qubits) in the circuit*(Reserved for future update).
 
     Returns:
         Dict: Probability distribution for each quantum state.
