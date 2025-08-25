@@ -389,7 +389,7 @@ class CQLibDevice(Device):
         Returns:
             str: String representation of the device.
         """
-        return f"<{self.name()} device (wires={self.num_wires}, shots={self.shots})>"
+        return f"<{self.name} device (wires={self.num_wires}, shots={self.shots})>"
 
 
 def extract_probability(
