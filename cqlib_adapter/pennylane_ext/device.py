@@ -36,7 +36,6 @@ class CQLibDevice(Device):
 
     # Device metadata
     short_name = "cqlib.device"
-    
     config_filepath = os.path.join(os.path.dirname(__file__), "cqlib_config.toml")
 
     def __init__(self, wires, shots=None, cqlib_backend_name="default", login_key=None):
@@ -400,7 +399,7 @@ def extract_probability(
     Args:
         json_data: JSON data containing measurement results, expected to be a list
                    containing dictionaries with 'probability' field.
-        num_wires: Number of quantum wires (qubits) in the circuit.
+        num_wires: Number of quantum wires (qubits) in the circuit*(Reserved for future update).
 
     Returns:
         Dict: Probability distribution for each quantum state.
