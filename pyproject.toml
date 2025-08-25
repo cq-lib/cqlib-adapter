@@ -2,7 +2,8 @@
 name = "cqlib-adapter"
 description = "Cqlib adapter"
 authors = [
-    { name = "Gao Jianjian", email = "jianjian001@outlook.com" }
+    { name = "Gao Jianjian", email = "jianjian001@outlook.com" },
+    { name = "Kan Yin", email = "kanyin@chinatelecom.cn" }
 ]
 readme = "README.md"
 requires-python = ">=3.10"
@@ -24,6 +25,7 @@ classifiers = [
 keywords = [
     "cqlib",
     "cqlib adapter",
+    "pennylane",
     "quantum circuit",
     "quantum computing",
     "quantum programming language",
@@ -31,8 +33,15 @@ keywords = [
     "sdk",
 ]
 
+[project.entry-points."pennylane.plugins"]
+"cqlib.device" = "cqlib_adapter.pennylane_ext.device:CQLibDevice"
+
 [tool.setuptools]
-packages = ["cqlib_adapter", "cqlib_adapter.qiskit_ext"]
+packages = ["cqlib_adapter", "cqlib_adapter.qiskit_ext", "cqlib_adapter.pennylane_ext"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"cqlib_adapter.pennylane_ext" = ["cqlib_config.toml"]
 
 [tool.setuptools.dynamic]
 version = { file = "cqlib_adapter/VERSION.txt" }
