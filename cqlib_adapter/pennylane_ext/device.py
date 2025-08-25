@@ -116,7 +116,7 @@ class CQLibDevice(Device):
                     if measurement.obs.name == "PauliX":
                         new_ops.append(qml.Hadamard(wires=measurement.obs.wires))
                     elif measurement.obs.name == "PauliY":
-                        new_ops.append(qml.S(wires=measurement.obs.wires).inv())
+                        new_ops.append(qml.adjoint(qml.S)(wires=measurement.obs.wires))
                         new_ops.append(qml.Hadamard(wires=measurement.obs.wires))
 
             # Convert circuit to QCIS format
