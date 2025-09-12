@@ -79,7 +79,7 @@ class CQLibDevice(Device):
         capabilities.update(
             model="qubit",
             supports_inverse_operations=False,
-            supports_analytic_computation=False,
+            supports_analytic_computation=True,
             supports_finite_shots=True,
             returns_state=False,
             passthru_devices={
@@ -93,31 +93,45 @@ class CQLibDevice(Device):
         return capabilities
 
     def execute(self, circuits: QuantumScriptOrBatch, execution_config=None):
-        """Executes quantum circuits on the target backend.
-
-        Args:
-            circuits: Quantum circuit(s) to execute (single or batch).
-            execution_config: Execution configuration parameters.
-
-        Returns:
-            list: List of measurement results for each circuit.
-        """
-        # Ensure circuits is a list (even if single circuit is provided)
+        """Executes quantum circuits on the target backend."""
         if isinstance(circuits, qml.tape.QuantumScript):
             circuits = [circuits]
-
+        
         results = []
 
         for circuit in circuits:
-            # Insert basis change gates for PauliX/PauliY measurements
+            wires = circuit.wires.labels
+            # print(circuit)
+            has_state_measurement = any(
+            isinstance(m, qml.measurements.StateMP) 
+            for m in circuit.measurements
+        )
+
+            if has_state_measurement and self.shots:
+                raise ValueError(
+                    "State measurement requires shots=None (analytic mode). "
+                    f"Current shots: {self.shots}"
+                )
+ 
             new_ops = list(circuit.operations)
             for measurement in circuit.measurements:
                 if isinstance(measurement, qml.measurements.ExpectationMP):
-                    if measurement.obs.name == "PauliX":
-                        new_ops.append(qml.Hadamard(wires=measurement.obs.wires))
-                    elif measurement.obs.name == "PauliY":
-                        new_ops.append(qml.adjoint(qml.S)(wires=measurement.obs.wires))
-                        new_ops.append(qml.Hadamard(wires=measurement.obs.wires))
+                    obs = measurement.obs
+                    
+                    if hasattr(obs, 'name') and obs.name == "Prod":
+                        for op in obs.operands:
+                            if op.name == "PauliX":
+                                new_ops.append(qml.Hadamard(wires=op.wires))
+                            elif op.name == "PauliY":
+                                new_ops.append(qml.adjoint(qml.S)(wires=op.wires))
+                                new_ops.append(qml.Hadamard(wires=op.wires))
+                    # 处理单泡利算子
+                    elif hasattr(obs, 'name'):
+                        if obs.name == "PauliX":
+                            new_ops.append(qml.Hadamard(wires=obs.wires))
+                        elif obs.name == "PauliY":
+                            new_ops.append(qml.adjoint(qml.S)(wires=obs.wires))
+                            new_ops.append(qml.Hadamard(wires=obs.wires))
 
             # Convert circuit to QCIS format
             qasm_str = circuit.to_openqasm()
@@ -146,7 +160,8 @@ class CQLibDevice(Device):
                 result = extract_probability(raw_result, num_wires=self.num_wires)
 
             else:
-                result = self._execute_on_simulator(cqlib_circuit)
+                calc_type = circuit.measurements
+                result = self._execute_on_simulator(cqlib_circuit,calc_type,wires)
 
             # Process measurement results
             circuit_results = self._process_measurements(circuit, result)
@@ -182,17 +197,123 @@ class CQLibDevice(Device):
             "tianyan_swn",
         }
 
-    def _execute_on_simulator(self, circuit):
+    def _execute_on_simulator(self, circuit, calc_type, wires):
         """Executes the circuit on a local simulator.
-
+        
         Args:
             circuit: Circuit to execute.
-
+            calc_type: Measurement type.
+            wires: Quantum wire ordering for result rearrangement.
+        
         Returns:
-            dict: Sampling results from the simulator.
+            Union[dict, np.ndarray]: Sampling results or state vector.
         """
+        if len(calc_type) > 1:
+            raise ValueError("Cannot use measurement more than once.")
+
         simulator = StatevectorSimulator(circuit)
-        return simulator.sample()
+        
+        if isinstance(calc_type[0], qml.measurements.StateMP):
+            
+            # 获取原始状态向量字典
+            original_statevector = simulator.statevector()
+            
+            # 获取量子比特数
+            num_qubits = len(next(iter(original_statevector.keys())))
+            
+            # 生成所有可能的基态字符串（小端序）
+            all_basis_states = [format(i, '0' + str(num_qubits) + 'b')[::-1] 
+                            for i in range(2**num_qubits)]
+            
+            # 根据原始顺序提取振幅
+            statevector = [original_statevector.get(basis_state, 0+0j) 
+                        for basis_state in all_basis_states]
+            
+            # 如果提供了wires参数且需要重排，则进行重排
+            if wires and len(wires) == num_qubits:
+                statevector = self._rearrange_statevector(statevector, wires, num_qubits)
+            
+            # 转换为 NumPy 数组
+            statevector_np = np.array(statevector)
+            return statevector_np
+        
+        elif isinstance(calc_type[0], qml.measurements.ProbabilityMP):
+            probs = simulator.probs()
+            if wires is not None and len(wires) == int(np.log2(len(probs))):
+                probs = self._rearrange_probabilities(probs, wires)
+            return probs
+        
+        elif isinstance(calc_type[0], qml.measurements.ExpectationMP):
+            return simulator.sample()
+        
+        else:
+            raise TypeError("Unknown Error!")
+
+    def _rearrange_statevector(self, statevector, wires, num_qubits):
+        """重排状态向量以匹配指定的量子比特顺序（大端序）
+        
+        Args:
+            statevector: 原始状态向量（numpy数组）
+            wires: 新顺序，例如 (2,0,1) 表示：
+                - 新位置0对应原始位置2的量子比特
+                - 新位置1对应原始位置0的量子比特  
+                - 新位置2对应原始位置1的量子比特
+            num_qubits: 量子比特数量
+        """
+        rearranged_statevector = np.zeros_like(statevector, dtype=complex)
+        
+        for new_index in range(len(statevector)):
+            # 将新索引转换为二进制字符串（大端序：高位在前，不需要反转）
+            new_basis = format(new_index, '0' + str(num_qubits) + 'b')
+            
+            # 根据wires映射找到对应的原始基态
+            original_basis = ['0'] * num_qubits
+            for new_pos in range(num_qubits):
+                original_pos = wires[new_pos]  # 新位置new_pos对应原始位置original_pos
+                original_basis[original_pos] = new_basis[new_pos]
+            
+            # 转换回原始索引（大端序：直接转换）
+            original_basis_str = ''.join(original_basis)
+            original_index = int(original_basis_str, 2)
+            
+            # 将原始状态的振幅放到新位置
+            rearranged_statevector[new_index] = statevector[original_index]
+        
+        return rearranged_statevector
+
+
+    def _rearrange_probabilities(self, probs_dict, wires):
+        """
+        重排概率分布字典以匹配指定的量子比特顺序（大端序）
+        
+        参数:
+            probs_dict: dict[str, float]
+                原始概率分布字典，key 是二进制字符串（如 '010'），
+                最高位在左边，最低位在右边。
+            wires: list[int]
+                新的量子比特顺序映射，例如 [2,1,0] 表示把原 qubit2 放到新位置0，
+                qubit1 放到新位置1，qubit0 放到新位置2。
+        返回:
+            dict[str, float]
+                重排后的概率分布字典。
+        """
+        num_qubits = len(next(iter(probs_dict.keys())))
+        rearranged_probs = {}
+
+        for original_basis, prob in probs_dict.items():
+            if prob == 0.0:
+                continue
+
+            new_basis = ['0'] * num_qubits
+            for new_pos in range(num_qubits):
+                original_pos = wires[new_pos]           # 原始 qubit 索引
+                str_index = num_qubits - 1 - original_pos  # 映射到字符串下标
+                new_basis[new_pos] = original_basis[str_index]
+
+            new_basis_str = ''.join(new_basis)
+            rearranged_probs[new_basis_str] = prob
+
+        return rearranged_probs
 
     def _process_measurements(
         self, circuit: QuantumScript, raw_result: Union[dict, List[dict]]
@@ -216,6 +337,9 @@ class CQLibDevice(Device):
                 results.append(self._process_expectation(measurement, raw_result))
             elif isinstance(measurement, qml.measurements.ProbabilityMP):
                 results.append(self._process_probability(measurement, raw_result))
+            elif isinstance(measurement, qml.measurements.StateMP):
+                results.append(self._process_state(measurement, raw_result))
+            
             else:
                 raise NotImplementedError(
                     f"Measurement type {type(measurement).__name__} is not supported"
@@ -225,29 +349,116 @@ class CQLibDevice(Device):
         return results[0] if len(results) == 1 else results
 
     def _process_expectation(self, measurement, raw_result) -> float:
-        """Processes expectation value measurements.
-
+        """Processes expectation value measurements for single and multi-Pauli observables.
+        
         Args:
             measurement: Expectation measurement operation.
             raw_result: Raw result data.
-
+        
         Returns:
             float: Processed expectation value.
-
-        Raises:
-            NotImplementedError: If expectation for non-PauliZ observables is requested.
-            ValueError: If raw_result type is unsupported.
         """
-        if measurement.obs.name != "PauliZ":
+        obs = measurement.obs
+        
+        # 处理多泡利张量积的情况
+        if hasattr(obs, 'name') and obs.name == "Prod":
+            # 提取所有泡利算子
+            pauli_operators = []
+            if hasattr(obs, 'operands'):
+                pauli_operators = obs.operands
+            elif hasattr(obs, '_obs'):
+                pauli_operators = obs._obs
+            
+            # 检查是否都是泡利Z算子（当前实现假设）
+            for op in pauli_operators:
+                if not hasattr(op, 'name') or not op.name.startswith('Pauli'):
+                    raise NotImplementedError(
+                        f"Multi-observable expectation only supports Pauli operators, got {op.name}"
+                    )
+            
+            return self._process_multi_pauli_expectation(pauli_operators, raw_result)
+        
+        # 处理单泡利算子的情况（保持原有逻辑）
+        elif hasattr(obs, 'name') and obs.name in ["PauliZ", "PauliX", "PauliY"]:
+            if obs.name != "PauliZ":
+                raise NotImplementedError(
+                    f"Single observable expectation for {obs.name} is not yet supported"
+                )
+            
+            if isinstance(raw_result, list):
+                return self.process_results(raw_result)
+            elif isinstance(raw_result, dict):
+                local_expectation = self.process_results_local(raw_result)
+                return local_expectation[measurement.wires[0]]
+            else:
+                raise ValueError(f"Unsupported raw_result type: {type(raw_result)}")
+        else:
             raise NotImplementedError(
-                f"Expectation for {measurement.obs.name} is not supported"
+                f"Expectation for {type(obs).__name__} is not supported"
             )
 
-        if isinstance(raw_result, list):
-            return self.process_results(raw_result)
-        elif isinstance(raw_result, dict):
-            local_expectation = self.process_results_local(raw_result)
-            return local_expectation[measurement.wires[0]]
+    def _process_multi_pauli_expectation(self, pauli_operators, raw_result) -> float:
+        """Processes expectation value for tensor products of Pauli operators.
+        
+        Args:
+            pauli_operators: List of Pauli operators in the tensor product.
+            raw_result: Raw result data from backend.
+        
+        Returns:
+            float: Joint expectation value.
+        
+        Raises:
+            ValueError: If raw_result format is invalid.
+        """
+        if isinstance(raw_result, dict):
+            # 处理本地模拟器的结果
+            total_shots = sum(raw_result.values())
+            expectation = 0.0
+            
+            for bitstring, count in raw_result.items():
+                # 计算这个比特串对应的特征值乘积
+                eigenvalue_product = 1.0
+                
+                for op in pauli_operators:
+                    qubit_idx = op.wires[0]  # 假设每个泡利算子作用在单个量子比特上
+                    bit_value = int(bitstring[-qubit_idx - 1])  # 获取对应量子比特的测量结果
+                    
+                    # 泡利Z的特征值：|0⟩ → +1, |1⟩ → -1
+                    eigenvalue = 1.0 if bit_value == 0 else -1.0
+                    eigenvalue_product *= eigenvalue
+                
+                expectation += (count / total_shots) * eigenvalue_product
+            
+            return expectation
+        
+        elif isinstance(raw_result, list):
+            # 处理云端模拟器/硬件的结果（概率分布形式）
+            try:
+                if isinstance(raw_result[0], dict) and 'probability' in raw_result[0]:
+                    probability_dict = raw_result[0]['probability']
+                    if isinstance(probability_dict, str):
+                        probability_dict = json.loads(probability_dict)
+                    
+                    expectation = 0.0
+                    for state, probability in probability_dict.items():
+                        eigenvalue_product = 1.0
+                        
+                        for op in pauli_operators:
+                            qubit_idx = op.wires[0]
+                            bit_value = int(state[-qubit_idx - 1])  # 注意比特顺序
+                            
+                            eigenvalue = 1.0 if bit_value == 0 else -1.0
+                            eigenvalue_product *= eigenvalue
+                        
+                        expectation += probability * eigenvalue_product
+                    
+                    return expectation
+                else:
+                    raise ValueError("Invalid probability format in raw_result")
+                    
+            except (json.JSONDecodeError, KeyError, TypeError) as error:
+                raise ValueError(f"Invalid raw_result format: {error}") from error
+        
         else:
             raise ValueError(f"Unsupported raw_result type: {type(raw_result)}")
 
@@ -289,6 +500,42 @@ class CQLibDevice(Device):
             raise ValueError(f"Probabilities do not sum to 1: {np.sum(probabilities)}")
 
         return probabilities
+
+    def _process_state(self, measurement, raw_result) -> np.ndarray:
+        """Processes state vector measurements.
+        
+        Args:
+            measurement: State measurement operation.
+            raw_result: Raw result data from backend (should be the state vector).
+        
+        Returns:
+            np.ndarray: State vector array.
+        
+        Raises:
+            ValueError: If state measurement is requested with finite shots.
+            NotImplementedError: If backend doesn't support state vector simulation.
+        """
+        # 检查是否使用有限shots
+        if self.shots:
+            raise ValueError(
+                "State vector measurement is only supported with shots=None (analytic mode). "
+                f"Current shots setting: {self.shots}"
+            )
+        
+        if self.machine_name not in ['default','tianyan_sw','tianyan_tn']:
+            raise ValueError(
+                "The backend you have chosen does not support state vector computation. "
+                f"Current backend: {self.machine_name}"
+            )
+
+
+        if isinstance(raw_result, np.ndarray):
+            return raw_result
+        else:
+            raise ValueError(
+                f"Expected state vector but got {type(raw_result)}. "
+                "Check _execute_on_simulator implementation."
+            )
 
     def process_results(self, raw_result):
         """Processes expectation value results from hardware or cloud simulator.
