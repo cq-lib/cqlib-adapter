@@ -11,6 +11,6 @@
 # that they have been altered from the originals.
 
 
-from .device import CQLibDevice
+from .old_device import CQLibDevice
 
 __all__ = ['CQLibDevice']
