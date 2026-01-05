@@ -35,7 +35,6 @@ from qiskit.compiler import transpile
 from qiskit.quantum_info import Operator
 from cqlib_adapter.qiskit_ext.gates import X2PGate, X2MGate, Y2PGate, Y2MGate, \
     XY2MGate, XY2PGate, RxyGate
-from tests.t import X2PGate
 
 
 def test_rx():
@@ -69,8 +68,7 @@ def test_h():
     c = QuantumCircuit(1)
     c.h(0)
     res = transpile(c, basis_gates=['cz', 'rz', 'y2p', 'x2p', 'global_phase'])
-    target = ('global phase: π/2\n'
-              '   ┌───────┐┌─────┐\n'
+    target = ('   ┌───────┐┌─────┐\n'
               'q: ┤ Rz(π) ├┤ Y2p ├\n'
               '   └───────┘└─────┘')
     assert str(res.draw('text')) == target
