@@ -29,6 +29,7 @@ from qiskit.circuit import Gate, QuantumCircuit, Parameter
 from qiskit.circuit.equivalence_library import SessionEquivalenceLibrary as SELib
 from qiskit.circuit.library import GlobalPhaseGate, RXGate, RYGate, \
     HGate, XGate, YGate
+from qiskit.circuit.parameterexpression import ParameterValueType
 
 
 class X2PGate(Gate):
@@ -67,9 +68,21 @@ class X2PGate(Gate):
         Raises:
             ValueError: If copying cannot be avoided.
         """
-        if copy is False:
-            raise ValueError("unable to avoid copy while creating an array as requested")
-        return np.asarray(X2P(), dtype=dtype)
+        return np.asarray(X2P(), dtype=dtype, copy=copy)
+
+    def inverse(self, annotated: bool = False):
+        r"""Return inverted X2P gate.
+
+        Args:
+            annotated: when set to ``True``, this is typically used to return an
+                :class:`.AnnotatedOperation` with an inverse modifier set instead of a concrete
+                :class:`.Gate`. However, for this class this argument is ignored as this gate
+                is self-inverse.
+
+        Returns:
+            X2MGate: inverse gate.
+        """
+        return X2MGate()
 
 
 class X2MGate(Gate):
@@ -104,13 +117,22 @@ class X2MGate(Gate):
 
         Returns:
             np.ndarray: The matrix representation of the gate.
-
-        Raises:
-            ValueError: If copying cannot be avoided.
         """
-        if copy is False:
-            raise ValueError("unable to avoid copy while creating an array as requested")
-        return np.asarray(X2M(), dtype=dtype)
+        return np.asarray(X2M(), dtype=dtype, copy=copy)
+
+    def inverse(self, annotated: bool = False):
+        r"""Return inverted X2M gate.
+
+        Args:
+            annotated: when set to ``True``, this is typically used to return an
+                :class:`.AnnotatedOperation` with an inverse modifier set instead of a concrete
+                :class:`.Gate`. However, for this class this argument is ignored as this gate
+                is self-inverse.
+
+        Returns:
+            X2PGate: inverse gate.
+        """
+        return X2PGate()
 
 
 class Y2PGate(Gate):
@@ -145,13 +167,22 @@ class Y2PGate(Gate):
 
         Returns:
             np.ndarray: The matrix representation of the gate.
-
-        Raises:
-            ValueError: If copying cannot be avoided.
         """
-        if copy is False:
-            raise ValueError("unable to avoid copy while creating an array as requested")
-        return np.asarray(Y2P(), dtype=dtype)
+        return np.asarray(Y2P(), dtype=dtype, copy=copy)
+
+    def inverse(self, annotated: bool = False):
+        r"""Return inverted Y2P gate.
+
+        Args:
+            annotated: when set to ``True``, this is typically used to return an
+                :class:`.AnnotatedOperation` with an inverse modifier set instead of a concrete
+                :class:`.Gate`. However, for this class this argument is ignored as this gate
+                is self-inverse.
+
+        Returns:
+            Y2MGate: inverse gate.
+        """
+        return Y2MGate()
 
 
 class Y2MGate(Gate):
@@ -186,13 +217,22 @@ class Y2MGate(Gate):
 
         Returns:
             np.ndarray: The matrix representation of the gate.
-
-        Raises:
-            ValueError: If copying cannot be avoided.
         """
-        if copy is False:
-            raise ValueError("unable to avoid copy while creating an array as requested")
-        return np.asarray(Y2M(), dtype=dtype)
+        return np.asarray(Y2M(), dtype=dtype, copy=copy)
+
+    def inverse(self, annotated: bool = False):
+        r"""Return inverted Y2M gate.
+
+        Args:
+            annotated: when set to ``True``, this is typically used to return an
+                :class:`.AnnotatedOperation` with an inverse modifier set instead of a concrete
+                :class:`.Gate`. However, for this class this argument is ignored as this gate
+                is self-inverse.
+
+        Returns:
+            Y2PGate: inverse gate.
+        """
+        return Y2PGate()
 
 
 class XY2PGate(Gate):
@@ -203,12 +243,12 @@ class XY2PGate(Gate):
     in the XY plane.
     """
 
-    def __init__(self, theta: float | Parameter, label: str = None):
+    def __init__(self, theta: ParameterValueType, label: str = None):
         """
         Initializes the XY2PGate.
 
         Args:
-            theta (float|Parameter): The rotation angle.
+            theta (ParameterValueType): The rotation angle.
             label (str, optional): A custom label for the gate. Defaults to None.
         """
         super().__init__("xy2p", 1, [theta], label=label)
@@ -231,14 +271,23 @@ class XY2PGate(Gate):
             copy: Whether to avoid copying the array.
 
         Returns:
-            np.ndarray: The matrix representation of the gate.
-
-        Raises:
-            ValueError: If copying cannot be avoided.
+            np.ndarray: The matrix represe
         """
-        if copy is False:
-            raise ValueError("unable to avoid copy while creating an array as requested")
-        return np.asarray(XY2P(self.params[0]), dtype=dtype)
+        return np.asarray(XY2P(self.params[0]), dtype=dtype, copy=copy)
+
+    def inverse(self, annotated: bool = False):
+        r"""Return inverted XY2PGate gate.
+
+        Args:
+            annotated: when set to ``True``, this is typically used to return an
+                :class:`.AnnotatedOperation` with an inverse modifier set instead of a concrete
+                :class:`.Gate`. However, for this class this argument is ignored as this gate
+                is self-inverse.
+
+        Returns:
+            XY2MGate: inverse gate.
+        """
+        return XY2MGate(self.params[0])
 
 
 class XY2MGate(Gate):
@@ -249,12 +298,12 @@ class XY2MGate(Gate):
     in the XY plane.
     """
 
-    def __init__(self, theta: float | Parameter, label: str = None):
+    def __init__(self, theta: ParameterValueType, label: str = None):
         """
         Initializes the XY2MGate.
 
         Args:
-            theta (float | Parameter): The rotation angle.
+            theta (ParameterValueType): The rotation angle.
             label (str, optional): A custom label for the gate. Defaults to None.
         """
         super().__init__("xy2m", 1, [theta], label=label)
@@ -278,13 +327,22 @@ class XY2MGate(Gate):
 
         Returns:
             np.ndarray: The matrix representation of the gate.
-
-        Raises:
-            ValueError: If copying cannot be avoided.
         """
-        if copy is False:
-            raise ValueError("unable to avoid copy while creating an array as requested")
-        return np.asarray(XY2M(self.params[0]), dtype=dtype)
+        return np.asarray(XY2M(self.params[0]), dtype=dtype, copy=copy)
+
+    def inverse(self, annotated: bool = False):
+        r"""Return inverted XY2MGate gate.
+
+        Args:
+            annotated: when set to ``True``, this is typically used to return an
+                :class:`.AnnotatedOperation` with an inverse modifier set instead of a concrete
+                :class:`.Gate`. However, for this class this argument is ignored as this gate
+                is self-inverse.
+
+        Returns:
+            XY2PGate: inverse gate.
+        """
+        return XY2PGate(self.params[0])
 
 
 class RxyGate(Gate):
@@ -295,9 +353,9 @@ class RxyGate(Gate):
     the Z-axis rotations before and after the X-axis π/2 rotations.
 
     Args:
-        phi (float | Parameter): Rotation angle (in radians) for initial Z-axis rotation.
+        phi (ParameterValueType): Rotation angle (in radians) for initial Z-axis rotation.
             Controls the phase offset in the composite rotation sequence.
-        theta (float | Parameter): Rotation angle (in radians) for middle Z-axis rotation.
+        theta (ParameterValueType): Rotation angle (in radians) for middle Z-axis rotation.
             Determines the main rotation magnitude between X-axis operations.
         label (str, optional): Optional text label for gate identification. Defaults to None.
 
@@ -308,13 +366,13 @@ class RxyGate(Gate):
         >>> qc.append(RxyGate(math.pi/3, math.pi/4), [0])
     """
 
-    def __init__(self, phi: float | Parameter, theta: float | Parameter, label: str = None):
+    def __init__(self, phi: ParameterValueType, theta: ParameterValueType, label: str = None):
         """
         Initializes the RxyGate.
 
         Args:
-            phi (float | Parameter): The rotation angle.
-            theta (float | Parameter): The rotation angle.
+            phi (ParameterValueType): The rotation angle.
+            theta (ParameterValueType): The rotation angle.
             label (str, optional): A custom label for the gate. Defaults to None.
         """
         super().__init__("rxy", 1, [phi, theta], label=label)
@@ -349,9 +407,21 @@ class RxyGate(Gate):
         Raises:
             ValueError: If copying cannot be avoided.
         """
-        if copy is False:
-            raise ValueError("unable to avoid copy while creating an array as requested")
-        return np.asarray(RXY(self.params[0], self.params[1]), dtype=dtype)
+        return np.asarray(RXY(self.params[0], self.params[1]), dtype=dtype, copy=copy)
+
+    def inverse(self, annotated: bool = False):
+        r"""Return inverted RxyGate gate.
+
+        Args:
+            annotated: when set to ``True``, this is typically used to return an
+                :class:`.AnnotatedOperation` with an inverse modifier set instead of a concrete
+                :class:`.Gate`. However, for this class this argument is ignored as this gate
+                is self-inverse.
+
+        Returns:
+            RxyGate: inverse gate.
+        """
+        return RxyGate(self.params[0], -self.params[1])
 
 
 x_qc = QuantumCircuit(1)

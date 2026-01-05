@@ -50,6 +50,7 @@ class BackendStatus(IntEnum):
     calibrating = 1
     under_maintenance = 2
     offline = 3
+    updating = 4
 
 
 class CqlibAdapterError(Exception):
@@ -427,8 +428,8 @@ class TianYanQuantumBackend(TianYanBackend):
 
         if t1_qubits != t2_qubits != frequency_qubits:
             raise ValueError("t1/t2/frequency qubits are not the same")
-        qubit_properties: list[QubitProperties | None] = [
-            None for _ in range(self.configuration.n_qubits)
+        qubit_properties = [
+            QubitProperties() for _ in range(self.configuration.n_qubits)
         ]
         for i, q in enumerate(t1_qubits):
             qubit_properties[int(q[1:])] = QubitProperties(
@@ -607,5 +608,5 @@ class TianYanSimulatorBackend(TianYanBackend):
                 target.add_instruction(**ins_mapping_dict[gate])
             elif gate == 'id':
                 pass
-            else:
-                warnings.warn(f'{gate} is not supported in simulator backend.')
+            # else:
+            #     warnings.warn(f'{gate} is not supported in simulator backend.')
