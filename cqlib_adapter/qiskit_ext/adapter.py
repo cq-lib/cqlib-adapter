@@ -49,7 +49,7 @@ def to_cqlib(qiskit_circuit: QiskitCircuit) -> CqlibCircuit:
             measure_qubits[cs[0]] = qs[0]
         elif operation.name == "barrier":
             cqlib_circuit.barrier(*qs)
-        elif operation.name == "i":
+        elif operation.name in ("i", "id"):
             cqlib_circuit.i(qs[0], 30)
         elif operation.name == 'unitary':
             ps = operation.params

@@ -34,7 +34,15 @@ from qiskit.circuit.library.standard_gates import CRXGate, CRYGate
 from qiskit.compiler import transpile
 from qiskit.quantum_info import Operator
 from cqlib_adapter.qiskit_ext.gates import X2PGate, X2MGate, Y2PGate, Y2MGate, \
-    XY2MGate, XY2PGate, RxyGate
+    XY2MGate, XY2PGate, RxyGate, target_from_basis_gates
+
+
+def _transpile_to_target(circuit: QuantumCircuit, basis_gates: list[str], **kwargs):
+    return transpile(
+        circuit,
+        target=target_from_basis_gates(basis_gates, num_qubits=circuit.num_qubits),
+        **kwargs
+    )
 
 
 def test_rx():
@@ -48,7 +56,7 @@ def test_rx():
     theta = Parameter('theta')
     c = QuantumCircuit(2)
     c.rx(theta, 0)
-    res = transpile(c, basis_gates=['cz', 'rz', 'x2p', 'x2m'], optimization_level=3)
+    res = _transpile_to_target(c, ['cz', 'rz', 'x2p', 'x2m'], optimization_level=3)
     target = ('     ┌─────────┐┌─────┐┌───────────┐┌─────┐┌──────────┐\n'
               'q_0: ┤ Rz(π/2) ├┤ X2p ├┤ Rz(theta) ├┤ X2m ├┤ Rz(-π/2) ├\n'
               '     └─────────┘└─────┘└───────────┘└─────┘└──────────┘\n'
@@ -67,11 +75,9 @@ def test_h():
     """
     c = QuantumCircuit(1)
     c.h(0)
-    res = transpile(c, basis_gates=['cz', 'rz', 'y2p', 'x2p', 'global_phase'])
-    target = ('   ┌───────┐┌─────┐\n'
-              'q: ┤ Rz(π) ├┤ Y2p ├\n'
-              '   └───────┘└─────┘')
-    assert str(res.draw('text')) == target
+    res = _transpile_to_target(c, ['cz', 'rz', 'y2p', 'x2p', 'global_phase'])
+    assert [inst.operation.name for inst in res.data] == ['rz', 'y2p']
+    assert Operator(res).equiv(Operator(c))
 
 
 def test_s():
@@ -84,7 +90,7 @@ def test_s():
     """
     c = QuantumCircuit(1)
     c.s(0)
-    res = transpile(c, basis_gates=['cz', 'rz', 'y2p', 'x2p', 'global_phase'])
+    res = _transpile_to_target(c, ['cz', 'rz', 'y2p', 'x2p', 'global_phase'])
     target = ('global phase: π/4\n'
               '   ┌─────────┐\n'
               'q: ┤ Rz(π/2) ├\n'
@@ -102,7 +108,7 @@ def test_t():
     """
     c = QuantumCircuit(1)
     c.t(0)
-    res = transpile(c, basis_gates=['cz', 'rz', 'y2p', 'x2p', 'global_phase'])
+    res = _transpile_to_target(c, ['cz', 'rz', 'y2p', 'x2p', 'global_phase'])
     target = ('global phase: π/8\n'
               '   ┌─────────┐\n'
               'q: ┤ Rz(π/4) ├\n'
@@ -123,27 +129,11 @@ def test_crx():
     theta = Parameter('theta')
     c = QuantumCircuit(2)
     c.crx(theta, 0, 1)
-    res = transpile(c, basis_gates=['cz', 'rz', 'y2p', 'y2m', 'x2p', 'x2m', 'global_phase'])
-    target = ('global phase: 0\n'
-              '                                                                         »\n'
-              'q_0: ────────────────────■───────────────────────────────────────────────»\n'
-              '     ┌──────────┐┌─────┐ │ ┌───────┐┌─────┐┌─────┐┌──────────────┐┌─────┐»\n'
-              'q_1: ┤ Rz(3π/2) ├┤ Y2p ├─■─┤ Rz(π) ├┤ Y2p ├┤ X2p ├┤ Rz(-theta/2) ├┤ X2m ├»\n'
-              '     └──────────┘└─────┘   └───────┘└─────┘└─────┘└──────────────┘└─────┘»\n'
-              '«                                                                     »\n'
-              '«q_0: ─────────────────■──────────────────────────────────────────────»\n'
-              '«     ┌───────┐┌─────┐ │ ┌───────┐┌─────┐┌─────┐┌─────────────┐┌─────┐»\n'
-              '«q_1: ┤ Rz(π) ├┤ Y2p ├─■─┤ Rz(π) ├┤ Y2p ├┤ X2p ├┤ Rz(theta/2) ├┤ X2m ├»\n'
-              '«     └───────┘└─────┘   └───────┘└─────┘└─────┘└─────────────┘└─────┘»\n'
-              '«                 \n'
-              '«q_0: ────────────\n'
-              '«     ┌──────────┐\n'
-              '«q_1: ┤ Rz(-π/2) ├\n'
-              '«     └──────────┘')
-    assert str(res.draw('text')) == target
+    res = _transpile_to_target(c, ['cz', 'rz', 'y2p', 'y2m', 'x2p', 'x2m', 'global_phase'])
+    assert set(res.count_ops()) <= {'cz', 'rz', 'y2p', 'y2m', 'x2p', 'x2m'}
     for i in range(10):
         t = np.pi * random.random()
-        assert np.allclose(np.asarray(CRXGate(t)), Operator(c.assign_parameters([t])).to_matrix())
+        assert Operator(res.assign_parameters([t])).equiv(Operator(CRXGate(t)))
 
 
 def test_cry():
@@ -159,21 +149,11 @@ def test_cry():
     theta = Parameter('theta')
     c = QuantumCircuit(2)
     c.cry(theta, 0, 1)
-    res = transpile(c, basis_gates=['cz', 'rz', 'y2p', 'y2m', 'x2p', 'x2m', 'global_phase'])
-    target = ('                                                                            »\n'
-              'q_0: ──────────────────────────────────────────────■────────────────────────»\n'
-              '     ┌─────┐┌─────────────┐┌─────┐┌───────┐┌─────┐ │ ┌───────┐┌─────┐┌─────┐»\n'
-              'q_1: ┤ X2p ├┤ Rz(theta/2) ├┤ X2m ├┤ Rz(π) ├┤ Y2p ├─■─┤ Rz(π) ├┤ Y2p ├┤ X2p ├»\n'
-              '     └─────┘└─────────────┘└─────┘└───────┘└─────┘   └───────┘└─────┘└─────┘»\n'
-              '«                                                               \n'
-              '«q_0: ────────────────────────────────────────■─────────────────\n'
-              '«     ┌──────────────┐┌─────┐┌───────┐┌─────┐ │ ┌───────┐┌─────┐\n'
-              '«q_1: ┤ Rz(-theta/2) ├┤ X2m ├┤ Rz(π) ├┤ Y2p ├─■─┤ Rz(π) ├┤ Y2p ├\n'
-              '«     └──────────────┘└─────┘└───────┘└─────┘   └───────┘└─────┘')
-    assert str(res.draw('text')) == target
+    res = _transpile_to_target(c, ['cz', 'rz', 'y2p', 'y2m', 'x2p', 'x2m', 'global_phase'])
+    assert set(res.count_ops()) <= {'cz', 'rz', 'y2p', 'y2m', 'x2p', 'x2m'}
     for i in range(10):
         t = np.pi * random.random()
-        assert np.allclose(np.asarray(CRYGate(t)), Operator(c.assign_parameters([t])).to_matrix())
+        assert Operator(res.assign_parameters([t])).equiv(Operator(CRYGate(t)))
 
 
 def test_to_qiskit_gate():
@@ -198,14 +178,7 @@ def test_to_qiskit_gate():
     c.append(RxyGate(phi, theta), [1])
 
     res = transpile(c, basis_gates=['h', 'rx', 'ry', 'rz', 'cx', 'cz', 'global_phase'])
-    target = ('     ┌─────────┐ ┌─────────┐ ┌──────────────────┐┌─────────┐┌─────────────────┐»\n'
-              'q_0: ┤ Rx(π/2) ├─┤ Ry(π/2) ├─┤ Rz(-theta - π/2) ├┤ Ry(π/2) ├┤ Rz(theta + π/2) ├»\n'
-              '     ├─────────┴┐├─────────┴┐├─────────────────┬┘├─────────┤├─────────────────┤»\n'
-              'q_1: ┤ Rx(-π/2) ├┤ Ry(-π/2) ├┤ Rz(π/2 - theta) ├─┤ Ry(π/2) ├┤ Rz(theta - π/2) ├»\n'
-              '     └──────────┘└──────────┘└─────────────────┘ └─────────┘└─────────────────┘»\n'
-              '«                                                                           \n'
-              '«q_0: ──────────────────────────────────────────────────────────────────────\n'
-              '«     ┌───────────────┐┌─────────┐┌───────────┐┌──────────┐┌───────────────┐\n'
-              '«q_1: ┤ Rz(π/2 - phi) ├┤ Rx(π/2) ├┤ Rz(theta) ├┤ Rx(-π/2) ├┤ Rz(phi - π/2) ├\n'
-              '«     └───────────────┘└─────────┘└───────────┘└──────────┘└───────────────┘')
-    assert str(res.draw()) == target
+    assert set(res.count_ops()) <= {'rx', 'ry', 'rz'}
+    for i in range(10):
+        values = {theta: np.pi * random.random(), phi: np.pi * random.random()}
+        assert Operator(res.assign_parameters(values)).equiv(Operator(c.assign_parameters(values)))

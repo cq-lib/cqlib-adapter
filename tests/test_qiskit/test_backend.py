@@ -137,3 +137,18 @@ class TestBackend:
 
         result = sampler.run([qc] * 3).result()
         assert len(result) == 3
+
+    def test_mapping(self):
+        backend = self._provider.backend('tianyan176')
+
+        circuit = QuantumCircuit(10, 1)
+        circuit.h(0)
+        circuit.cx(0, 1)
+        for i in range(10):
+            circuit.rx(1, i)
+        for i in range(4):
+            circuit.cx(i, i + 3)
+        circuit.measure(0, 0)
+
+        c = transpile(circuit, target=backend.target)
+        assert c.num_qubits == 66

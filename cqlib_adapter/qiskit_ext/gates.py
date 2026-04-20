@@ -30,6 +30,7 @@ from qiskit.circuit.equivalence_library import SessionEquivalenceLibrary as SELi
 from qiskit.circuit.library import GlobalPhaseGate, RXGate, RYGate, \
     HGate, XGate, YGate
 from qiskit.circuit.parameterexpression import ParameterValueType
+from qiskit.transpiler import Target
 
 
 class X2PGate(Gate):
@@ -506,6 +507,40 @@ qc.rx(-pi / 2, 0)
 qc.rz(p_ - pi / 2, 0)
 SELib.add_equivalence(RxyGate(p_, t_), qc)
 
+
+def qcis_name_mapping() -> dict:
+    """Return Qiskit Target name mappings for cqlib custom gates."""
+    theta = Parameter("theta")
+    phi = Parameter("phi")
+    return {
+        "x2p": X2PGate(),
+        "x2m": X2MGate(),
+        "y2p": Y2PGate(),
+        "y2m": Y2MGate(),
+        "xy2p": XY2PGate(theta),
+        "xy2m": XY2MGate(theta),
+        "rxy": RxyGate(phi, theta),
+    }
+
+
+def target_from_basis_gates(
+        basis_gates: list[str],
+        num_qubits: int | None = None,
+        coupling_map=None,
+) -> Target:
+    """Build a Qiskit Target that includes cqlib custom gate names.
+
+    Qiskit 2.4 rejects non-standard gate names in ``transpile(..., basis_gates=...)``.
+    Custom operations must be supplied through a ``Target`` instead.
+    """
+    return Target.from_configuration(
+        basis_gates=basis_gates,
+        num_qubits=num_qubits,
+        coupling_map=coupling_map,
+        custom_name_mapping=qcis_name_mapping(),
+    )
+
+
 __all__ = [
     'X2PGate',
     'X2MGate',
@@ -513,5 +548,7 @@ __all__ = [
     'Y2MGate',
     'XY2PGate',
     'XY2MGate',
-    'RxyGate'
+    'RxyGate',
+    'qcis_name_mapping',
+    'target_from_basis_gates',
 ]
