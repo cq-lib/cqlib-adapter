@@ -16,7 +16,8 @@ Qiskit extension module for TianYan quantum platform integration.
 
 from .adapter import to_cqlib
 from .api_client import ApiClient
-from .gates import X2PGate, X2MGate, Y2PGate, Y2MGate, XY2MGate, XY2PGate, RxyGate
+from .gates import X2PGate, X2MGate, Y2PGate, Y2MGate, XY2MGate, XY2PGate, RxyGate, \
+    qcis_name_mapping, target_from_basis_gates
 from .job import TianYanJob
 from .sampler import TianYanSampler
 from .tianyan_backend import TianYanBackend
@@ -33,6 +34,8 @@ __all__ = [
     'XY2PGate',
     'XY2MGate',
     'RxyGate',
+    'qcis_name_mapping',
+    'target_from_basis_gates',
 
     "TianYanJob",
     "TianYanSampler",
