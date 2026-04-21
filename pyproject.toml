@@ -2,8 +2,7 @@
 name = "cqlib-adapter"
 description = "Cqlib adapter"
 authors = [
-    { name = "Gao Jianjian", email = "jianjian001@outlook.com" },
-    { name = "Kan Yin", email = "kanyin@chinatelecom.cn" }
+    { name = "China Telecom Quantum Group Quantum Computing Team", email = "tianyan@chinatelecom.cn" },
 ]
 readme = "README.md"
 requires-python = ">=3.10"
@@ -19,6 +18,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries"
 ]
 
