@@ -1,3 +1,16 @@
+# This code is part of cqlib.
+#
+# Copyright (C) 2026 China Telecom Quantum Group.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
+
 """PennyLane device implementation using CQLib backend.
 
 This module provides a custom quantum device that interfaces between PennyLane
@@ -12,6 +25,12 @@ from pennylane.devices import Device
 from pennylane.tape import QuantumScript, QuantumScriptOrBatch
 
 from .circuit_executor import CircuitExecutor
+from .native_gates import (
+    X2PGate, X2MGate,
+    Y2PGate, Y2MGate,
+    XY2PGate, XY2MGate
+)
+from ..utils.api_client import ApiClient
 
 
 class CQLibDevice(Device):
@@ -28,34 +47,33 @@ class CQLibDevice(Device):
         SUPPORTED_OPERATIONS (set): Set of supported quantum operations.
     """
 
-    # Backend configurations
-    TIANYAN_HARDWARE_BACKENDS = {
-        "tianyan24",
-        "tianyan504", 
-        "tianyan176-2",
-        "tianyan176",
-    }
-    
-    TIANYAN_SIMULATOR_BACKENDS = {
-        "tianyan_sw",
-        "tianyan_s", 
-        "tianyan_tn",
-        "tianyan_tnn",
-        "tianyan_sa",
-        "tianyan_swn",
-    }
+    # Backend configurations - dynamically populated from API
+    # Empty sets, populated on first fetch via get_available_backends()
+    TIANYAN_HARDWARE_BACKENDS: Set[str] = set()
+    TIANYAN_SIMULATOR_BACKENDS: Set[str] = set()
 
     # Supported operations
+    # Updated to include custom native gates (X2P, Y2P, Rxy, etc.)
     SUPPORTED_OPERATIONS = {
+        # Standard Gates
         "Hadamard",
-        "PauliX", 
+        "PauliX",
         "PauliY",
         "PauliZ",
         "CNOT",
         "CZ",
         "RX",
-        "RY", 
+        "RY",
         "RZ",
+        "S",
+        "T",
+
+        "X2PGate",
+        "X2MGate",
+        "Y2PGate",
+        "Y2MGate",
+        "XY2PGate",
+        "XY2MGate",
     }
 
     # Device metadata
@@ -72,7 +90,7 @@ class CQLibDevice(Device):
         verbose: bool = False,
     ) -> None:
         """Initialize the CQLib device.
-        
+
         Args:
             wires: Number of qubits in the device.
             shots: Number of measurement shots. If None, uses analytic mode.
@@ -80,12 +98,12 @@ class CQLibDevice(Device):
             login_key: Authentication key for cloud services.
             mapping: Qubit mapping configuration.
             verbose: Whether to enable verbose output.
-            
+
         Raises:
             ValueError: If invalid configuration parameters are provided.
         """
         super().__init__(wires=wires, shots=shots)
-        
+
         device_config = {
             "wires": wires,
             "shots": shots,
@@ -99,31 +117,19 @@ class CQLibDevice(Device):
         self.num_shots = shots
         self.circuit_executor = CircuitExecutor(device_config)
 
-    @property  
+    @property
     def name(self) -> str:
-        """Return the device name.
-        
-        Returns:
-            String representing the device name.
-        """
+        """Return the device name."""
         return "Cqlib Quantum Device"
 
     @property
     def operations(self) -> Set[str]:
-        """Return the set of supported operations.
-        
-        Returns:
-            Set of supported operation names.
-        """
+        """Return the set of supported operations."""
         return self.SUPPORTED_OPERATIONS
 
     @property
     def backend_info(self) -> Dict[str, Any]:
-        """Return information about the current backend.
-        
-        Returns:
-            Dictionary containing backend configuration information.
-        """
+        """Return information about the current backend."""
         return {
             "backend_type": self.machine_name,
             "is_hardware": self.machine_name in self.TIANYAN_HARDWARE_BACKENDS,
@@ -134,11 +140,7 @@ class CQLibDevice(Device):
 
     @classmethod
     def capabilities(cls) -> Dict[str, Any]:
-        """Return the device capabilities configuration.
-        
-        Returns:
-            Dictionary containing supported features and capabilities.
-        """
+        """Return the device capabilities configuration."""
         capabilities = super().capabilities().copy()
 
         capabilities.update(
@@ -154,70 +156,90 @@ class CQLibDevice(Device):
                 "jax": "default.qubit.jax",
             },
         )
-
         return capabilities
+
+    @classmethod
+    def fetch_available_backends(cls, token: str = None) -> Dict[str, List[str]]:
+        """Fetch available backends from TianYan API and cache them.
+
+        Args:
+            token: API token. If None, uses CQLIB_TOKEN env var.
+
+        Returns:
+            Dict with 'hardware' and 'simulator' keys containing lists of backend names.
+        """
+        if token is None:
+            token = os.environ.get("CQLIB_TOKEN", "")
+
+        if not token:
+            raise ValueError("API token is required to fetch available backends")
+
+        client = ApiClient(token=token)
+        backends = client.get_backends()
+
+        hardware = set()
+        simulator = set()
+
+        for backend in backends:
+            code = backend.get('code')
+            label = backend.get('labels')
+            if code:
+                if label == '1':
+                    hardware.add(code)
+                else:
+                    simulator.add(code)
+
+        cls.TIANYAN_HARDWARE_BACKENDS = hardware
+        cls.TIANYAN_SIMULATOR_BACKENDS = simulator
+
+        return {
+            'hardware': sorted(hardware),
+            'simulator': sorted(simulator)
+        }
+
+    @classmethod
+    def get_available_backends(cls, token: str = None, force_refresh: bool = False) -> Dict[str, List[str]]:
+        """Get available backends, fetching from API if not cached.
+
+        Args:
+            token: API token. If None, uses CQLIB_TOKEN env var.
+            force_refresh: If True, force re-fetch from API.
+
+        Returns:
+            Dict with 'hardware' and 'simulator' keys containing lists of backend names.
+        """
+        if force_refresh or not cls.TIANYAN_HARDWARE_BACKENDS:
+            cls.fetch_available_backends(token)
+
+        return {
+            'hardware': sorted(cls.TIANYAN_HARDWARE_BACKENDS),
+            'simulator': sorted(cls.TIANYAN_SIMULATOR_BACKENDS)
+        }
 
     def supports_operation(self, operation: Any) -> bool:
         """Check if a specific quantum operation is supported.
-        
-        Args:
-            operation: Quantum operation to check.
 
-        Returns:
-            True if the operation is supported, False otherwise.
+        This method is critical for preventing PennyLane from decomposing
+        our native gates (like X2PGate) into standard gates.
         """
-        supported_operations = {
-            "PauliX",
-            "PauliY",
-            "PauliZ",
-            "Hadamard",
-            "S",
-            "T",
-            "RX",
-            "RY",
-            "RZ",
-            "CNOT",
-            "CZ",
-        }
-        return getattr(operation, "name", None) in supported_operations
+        return getattr(operation, "name", None) in self.SUPPORTED_OPERATIONS
 
     def execute(
-        self, 
-        circuits: Union[QuantumScript, List[QuantumScript]], 
+        self,
+        circuits: Union[QuantumScript, List[QuantumScript]],
         execution_config: Any = None,
     ) -> List[Any]:
-        """Execute quantum circuits on the device.
-        
-        Args:
-            circuits: Single quantum circuit or list of circuits to execute.
-            execution_config: Execution configuration parameters.
-
-        Returns:
-            List of execution results for each circuit.
-        """
+        """Execute quantum circuits on the device."""
         if isinstance(circuits, QuantumScript):
             circuits = [circuits]
-        
-        return [self.circuit_executor.execute_circuit(circuit) for circuit in circuits]
-        
-    
-    def __repr__(self) -> str:
-        """Return string representation of the device.
-        
-        Returns:
-            String representation of the device.
-        """
-        return f"<{self.name} device (wires={self.wires}, shots={self.shots})>"
-    
-    def preprocess_transforms(self, execution_config: Any = None) -> Any:
-        """Define the preprocessing transformation pipeline.
-        
-        Args:
-            execution_config: Execution configuration parameters.
 
-        Returns:
-            TransformProgram: Preprocessing transformation program.
-        """
+        return [self.circuit_executor.execute_circuit(circuit) for circuit in circuits]
+
+    def __repr__(self) -> str:
+        return f"<{self.name} device (wires={self.wires}, shots={self.shots})>"
+
+    def preprocess_transforms(self, execution_config: Any = None) -> Any:
+        """Define the preprocessing transformation pipeline."""
         program = qml.transforms.core.TransformProgram()
         program.add_transform(
             qml.devices.preprocess.validate_device_wires,
@@ -228,6 +250,9 @@ class CQLibDevice(Device):
             qml.devices.preprocess.validate_measurements,
             name=self.short_name,
         )
+
+        # IMPORTANT: stopping_condition uses self.supports_operation
+        # to preserve our custom native gates.
         program.add_transform(
             qml.devices.preprocess.decompose,
             stopping_condition=self.supports_operation,

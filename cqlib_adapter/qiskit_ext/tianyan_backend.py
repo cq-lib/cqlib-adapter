@@ -1,6 +1,6 @@
 # This code is part of cqlib.
 #
-# Copyright (C) 2025 China Telecom Quantum Group.
+# Copyright (C) 2026 China Telecom Quantum Group.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE file in the root directory
@@ -18,6 +18,7 @@ for both quantum computers and simulators on the TianYan platform.
 """
 
 import json
+import warnings
 from collections import namedtuple
 from datetime import datetime
 from enum import IntEnum
@@ -25,12 +26,12 @@ from enum import IntEnum
 from qiskit.circuit import QuantumCircuit, Parameter, Measure, Barrier
 from qiskit.circuit.library import standard_gates
 from qiskit.circuit.library.standard_gates import CZGate, RZGate, HGate, \
-    GlobalPhaseGate, CXGate, IGate
+    GlobalPhaseGate, CXGate
 from qiskit.providers import BackendV2 as Backend, Options, JobV1, QubitProperties
 from qiskit.transpiler import Target, InstructionProperties, generate_preset_pass_manager
 
 from .adapter import to_cqlib
-from .api_client import ApiClient
+from ..utils.api_client import ApiClient
 from .gates import X2PGate, X2MGate, Y2MGate, Y2PGate, XY2MGate, XY2PGate, RxyGate
 from .job import TianYanJob
 
@@ -49,7 +50,6 @@ class BackendStatus(IntEnum):
     calibrating = 1
     under_maintenance = 2
     offline = 3
-    updating = 4
 
 
 class CqlibAdapterError(Exception):
@@ -157,7 +157,6 @@ class BackendConfiguration:
 
         if backend_type == BackendType.quantum_computer:
             qpu = api_client.get_quantum_computer_config(backend_id)
-            n_qubits = max(int(q[1:]) for q in qpu['qubits']) + 1
             qubits = [int(q[1:]) for q in qpu['qubits'] if q not in disabled_qubits]
             coupling_map = []
 
@@ -214,7 +213,7 @@ class BackendConfiguration:
         data = {
             'backend_id': backend_id,
             'backend_name': data['code'],
-            'n_qubits': n_qubits,
+            'n_qubits': data['bitWidth'],
             'basis_gates': basis_gates,
             'derivative_gates': derivative_gates,
             'gates': gates,
@@ -363,7 +362,6 @@ time_units = {
     's': 1,
     'ms': 1e-3,
     'us': 1e-6,
-    'μs': 1e-6,
     'ns': 1e-9
 }
 frequency_units = {
@@ -397,7 +395,7 @@ class TianYanQuantumBackend(TianYanBackend):
             self.configuration.backend_name
         )
         target = Target(
-            num_qubits=configuration.n_qubits,
+            # num_qubits=configuration.n_qubits,
             description=configuration.backend_name,
             qubit_properties=self._make_qubit_properties()
         )
@@ -427,10 +425,10 @@ class TianYanQuantumBackend(TianYanBackend):
         frequency_values = frequency['param_list']
         frequency_unit = frequency_units.get(frequency['unit'].lower())
 
-        if not (t1_qubits == t2_qubits == frequency_qubits):
+        if t1_qubits != t2_qubits != frequency_qubits:
             raise ValueError("t1/t2/frequency qubits are not the same")
-        qubit_properties = [
-            QubitProperties() for _ in range(self.configuration.n_qubits)
+        qubit_properties: list[QubitProperties | None] = [
+            None for _ in range(self.configuration.n_qubits)
         ]
         for i, q in enumerate(t1_qubits):
             qubit_properties[int(q[1:])] = QubitProperties(
@@ -452,24 +450,15 @@ class TianYanQuantumBackend(TianYanBackend):
         error_qubits = gate_errors['qubit_used']
         error_values = gate_errors['param_list']
         error_unit = number_units[gate_errors['unit']]
-        supported_qubits = self._supported_operation_qubits()
 
         for i, q in enumerate(error_qubits):
             q0, q1 = coupler_map[q]
             q0, q1 = int(q0[1:]), int(q1[1:])
-            if q0 not in supported_qubits or q1 not in supported_qubits:
-                continue
             p = InstructionProperties(error=error_values[i] * error_unit, duration=1e-8)
             cz_props[q0, q1] = p
             cz_props[q1, q0] = p
         if 'cz' in self.configuration.basis_gates:
             target.add_instruction(CZGate(), cz_props)
-
-    def _supported_operation_qubits(self):
-        """Returns physical qubits with both single-qubit gates and readout support."""
-        single_qubits = self._machine_config['qubit']['singleQubit']['gate error']['qubit_used']
-        readout_qubits = self._machine_config['readout']['readoutArray']['Readout Error']['qubit_used']
-        return {int(q[1:]) for q in single_qubits} & {int(q[1:]) for q in readout_qubits}
 
     def _update_single_gates(self, target: Target):
         """Updates the single-qubit gates in the target.
@@ -498,8 +487,6 @@ class TianYanQuantumBackend(TianYanBackend):
             )
         if 'rz' in self.configuration.basis_gates:
             target.add_instruction(RZGate(Parameter('theta')), rz_props)
-        if 'id' in self.configuration.basis_gates:
-            target.add_instruction(IGate(), single_props.copy())
         if 'x2p' in self.configuration.basis_gates:
             target.add_instruction(X2PGate(), single_props.copy())
             # HGate is very import.
@@ -515,7 +502,7 @@ class TianYanQuantumBackend(TianYanBackend):
         if 'xy2m' in self.configuration.basis_gates:
             target.add_instruction(XY2MGate(Parameter('theta')), single_props.copy())
 
-        target.add_instruction(GlobalPhaseGate(Parameter('phase')))
+        target.add_instruction(GlobalPhaseGate(Parameter('phase')), {(): None})
 
     def _update_measure_gate(self, target: Target):
         """Updates the measurement gate in the target.
@@ -596,7 +583,6 @@ class TianYanSimulatorBackend(TianYanBackend):
             'y2m': [Y2MGate(), q_props],
             'xy2p': [XY2PGate(Parameter('theta')), q_props],
             'xy2m': [XY2MGate(Parameter('theta')), q_props],
-            'id': [standard_gates.IGate(), q_props],
             'h': [standard_gates.HGate(), q_props],
             'x': [standard_gates.XGate(), q_props],
             'y': [standard_gates.YGate(), q_props],
@@ -621,5 +607,5 @@ class TianYanSimulatorBackend(TianYanBackend):
                 target.add_instruction(**ins_mapping_dict[gate])
             elif gate == 'id':
                 pass
-            # else:
-            #     warnings.warn(f'{gate} is not supported in simulator backend.')
+            else:
+                warnings.warn(f'{gate} is not supported in simulator backend.')
