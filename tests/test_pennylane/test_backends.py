@@ -19,6 +19,7 @@ from pennylane.devices import Device
 
 # Configuration parameters
 TOKEN = os.getenv("CQLIB_TOKEN", None)
+TOKEN = "ZtQYpi6GVW24lrSOpauj16mRCAFrWN/3Et4xJjhn7dg="
 SHOTS = 500
 WIRES = 2
 INITIAL_PARAMS = np.array([0.5, 0.8])

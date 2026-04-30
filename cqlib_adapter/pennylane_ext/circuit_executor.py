@@ -28,7 +28,7 @@ import numpy as np
 import pennylane as qml
 from pennylane.tape import QuantumScript
 
-from cqlib import TianYanPlatform
+from cqlib import TianYanPlatform, Circuit
 from cqlib.mapping import transpile_qcis
 from cqlib.simulator import StatevectorSimulator
 from cqlib.utils import qasm2
@@ -49,16 +49,7 @@ class CircuitExecutor:
     """
 
     def __init__(self, device_config: Dict[str, Any]) -> None:
-        """Initializes the circuit executor with the provided device configuration.
-
-        Args:
-            device_config: A dictionary containing device settings such as 'machine_name',
-                'login_key', 'shots', and 'wires'.
-
-        Raises:
-            ValueError: If a required 'login_key' is missing for a non-default backend.
-            ConnectionError: If the connection to the Tianyan API fails.
-        """
+        """Initializes the circuit executor with the provided device configuration."""
         self.device_config = device_config
         self.logger = self._setup_logger()
         self.cqlib_backend: Optional[TianYanPlatform] = None
@@ -87,11 +78,7 @@ class CircuitExecutor:
         self.logger.info("CircuitExecutor initialized with %s backend", self._backend_type.value)
 
     def _setup_logger(self) -> logging.Logger:
-        """Configures and returns a logger instance for execution tracking.
-
-        Returns:
-            A configured logging.Logger instance.
-        """
+        """Configures and returns a logger instance for execution tracking."""
         logger = logging.getLogger(f"CircuitExecutor.{id(self)}")
 
         if self.device_config.get('verbose', False):
@@ -99,21 +86,13 @@ class CircuitExecutor:
             handler = logging.StreamHandler()
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             handler.setFormatter(formatter)
-            # Prevent adding multiple handlers if initialized multiple times
             if not logger.handlers:
                 logger.addHandler(handler)
 
         return logger
 
     def _determine_backend_type(self) -> BackendType:
-        """Determines the appropriate backend type based on the device configuration.
-
-        Returns:
-            The resolved BackendType enumeration.
-
-        Raises:
-            ValueError: If the specified machine_name is not recognized or supported.
-        """
+        """Determines the appropriate backend type based on the device configuration."""
         from .device import CQLibDevice
 
         backend_name = self.device_config.get('machine_name', 'default')
@@ -128,12 +107,7 @@ class CircuitExecutor:
         raise ValueError(f"Unknown or unsupported backend: {backend_name}")
 
     def _initialize_backend(self) -> None:
-        """Initializes the connection to the quantum computation backend.
-
-        Raises:
-            ValueError: If a login key is required but missing.
-            ConnectionError: If establishing the backend connection fails.
-        """
+        """Initializes the connection to the quantum computation backend."""
         if self._backend_type == BackendType.LOCAL_SIMULATOR:
             self.logger.debug("Using local simulator - no backend connection needed.")
             return
@@ -159,15 +133,7 @@ class CircuitExecutor:
             raise ConnectionError(f"Backend connection failed: {error}") from error
 
     def execute_circuit(self, circuit: QuantumScript) -> Union[List[Any], Any]:
-        """Executes a quantum circuit and returns the measurement results.
-
-        Args:
-            circuit: The PennyLane quantum circuit to execute.
-
-        Returns:
-            A single measurement result if the circuit contains one measurement,
-            otherwise a list of results corresponding to each measurement.
-        """
+        """Executes a quantum circuit and returns the measurement results."""
         self._validate_circuit(circuit)
         self._execution_count += 1
         results = []
@@ -184,14 +150,7 @@ class CircuitExecutor:
         return results[0] if len(results) == 1 else results
 
     def _validate_circuit(self, circuit: QuantumScript) -> None:
-        """Validates circuit constraints against the current device configuration.
-
-        Args:
-            circuit: The PennyLane quantum circuit to validate.
-
-        Raises:
-            ValueError: If exact state vector simulation is requested with finite shots.
-        """
+        """Validates circuit constraints against the current device configuration."""
         has_state_measurement = any(
             isinstance(m, qml.measurements.StateMP) for m in circuit.measurements
         )
@@ -204,14 +163,7 @@ class CircuitExecutor:
             )
 
     def _validate_measurement_support(self, measurement: Any) -> None:
-        """Validates that the active backend supports the requested measurement.
-
-        Args:
-            measurement: The PennyLane measurement process instance.
-
-        Raises:
-            ValueError: If the measurement type is unsupported by the backend.
-        """
+        """Validates that the active backend supports the requested measurement."""
         supported_measurements = {
             BackendType.LOCAL_SIMULATOR: {
                 qml.measurements.ProbabilityMP,
@@ -241,34 +193,16 @@ class CircuitExecutor:
             )
 
     def _convert_to_cqlib_format(self, circuit: QuantumScript) -> Tuple[Any, str]:
-        """Converts a PennyLane circuit into CQLib-compatible parsed objects and QCIS string.
-
-        Args:
-            circuit: The PennyLane quantum circuit.
-
-        Returns:
-            A tuple containing the parsed CQLib circuit object and its QCIS string representation.
-
-        Raises:
-            ValueError: If parsing or compilation fails.
-        """
+        """Converts a PennyLane circuit into CQLib-compatible parsed objects and QCIS string."""
         try:
-            qasm_string = self._build_custom_qasm(circuit)
-            cqlib_circuit = qasm2.loads(qasm_string)
+            cqlib_circuit = self._build_cqlib_circuit(circuit)
             return cqlib_circuit, cqlib_circuit.qcis
         except Exception as error:
             self.logger.error("Circuit conversion from PennyLane to CQLib format failed: %s", error)
             raise ValueError(f"Circuit conversion failed: {error}") from error
 
-    def _build_custom_qasm(self, circuit: QuantumScript) -> str:
-        """Builds an OpenQASM 2.0 string manually to handle custom native gates.
-
-        Args:
-            circuit: The PennyLane quantum circuit.
-
-        Returns:
-            A well-formed OpenQASM 2.0 string representing the circuit operations.
-        """
+    def _build_cqlib_circuit(self, circuit: QuantumScript) -> Circuit:
+        """Directly constructs a CQLib Circuit object from a PennyLane quantum circuit."""
         device_wires = self.device_config.get('wires')
         if isinstance(device_wires, int):
             num_wires = device_wires
@@ -277,67 +211,61 @@ class CircuitExecutor:
         else:
             num_wires = max(circuit.wires.labels) + 1 if circuit.wires else 1
 
-        qasm_lines = [
-            "OPENQASM 2.0;",
-            'include "qelib1.inc";',
-            f"qreg q[{num_wires}];",
-            f"creg c[{num_wires}];"
-        ]
+        cqlib_cir = Circuit(num_wires)
 
-        for op in circuit.operations:
+        def map_operation(op, target_circuit: Circuit):
             op_name = op.name
             wires = op.wires.tolist()
             params = op.parameters
-            q_str = ",".join([f"q[{w}]" for w in wires])
 
             if op_name == "X2PGate":
-                qasm_lines.append(f"x2p {q_str};")
+                target_circuit.x2p(wires[0])
             elif op_name == "X2MGate":
-                qasm_lines.append(f"x2m {q_str};")
+                target_circuit.x2m(wires[0])
             elif op_name == "Y2PGate":
-                qasm_lines.append(f"y2p {q_str};")
+                target_circuit.y2p(wires[0])
             elif op_name == "Y2MGate":
-                qasm_lines.append(f"y2m {q_str};")
+                target_circuit.y2m(wires[0])
             elif op_name == "XY2PGate":
-                qasm_lines.append(f"xy2p({params[0]}) {q_str};")
+                target_circuit.xy2p(wires[0], params[0])
             elif op_name == "XY2MGate":
-                qasm_lines.append(f"xy2m({params[0]}) {q_str};")
+                target_circuit.xy2m(wires[0], params[0])
             elif op_name == "PauliX":
-                qasm_lines.append(f"x {q_str};")
+                target_circuit.x(wires[0])
             elif op_name == "PauliY":
-                qasm_lines.append(f"y {q_str};")
+                target_circuit.y(wires[0])
             elif op_name == "PauliZ":
-                qasm_lines.append(f"z {q_str};")
+                target_circuit.z(wires[0])
             elif op_name == "Hadamard":
-                qasm_lines.append(f"h {q_str};")
+                target_circuit.h(wires[0])
             elif op_name == "RX":
-                qasm_lines.append(f"rx({params[0]}) {q_str};")
+                target_circuit.rx(wires[0], params[0])
             elif op_name == "RY":
-                qasm_lines.append(f"ry({params[0]}) {q_str};")
+                target_circuit.ry(wires[0], params[0])
             elif op_name == "RZ":
-                qasm_lines.append(f"rz({params[0]}) {q_str};")
+                target_circuit.rz(wires[0], params[0])
             elif op_name == "CNOT":
-                qasm_lines.append(f"cx {q_str};")
+                target_circuit.cx(wires[0], wires[1])
             elif op_name == "CZ":
-                qasm_lines.append(f"cz {q_str};")
+                target_circuit.cz(wires[0], wires[1])
             elif op_name == "S":
-                qasm_lines.append(f"s {q_str};")
+                target_circuit.s(wires[0])
             elif op_name == "T":
-                qasm_lines.append(f"t {q_str};")
+                target_circuit.t(wires[0])
             else:
                 try:
-                    partial_qasm = op.to_openqasm().split('\n')
-                    valid_lines = [
-                        l for l in partial_qasm
-                        if not l.startswith(('OPENQASM', 'include', 'qreg', 'creg')) and l.strip()
-                    ]
-                    qasm_lines.extend(valid_lines)
-                except Exception:
+                    decomposed_ops = op.decomposition()
+                    for d_op in decomposed_ops:
+                        map_operation(d_op, target_circuit)
+                except Exception as e:
                     self.logger.warning(
-                        f"Operation {op_name} not natively mapped and QASM fallback failed."
+                        f"Operation {op_name} not natively mapped and decomposition failed: {e}"
                     )
 
-        return "\n".join(qasm_lines)
+        for op in circuit.operations:
+            map_operation(op, cqlib_cir)
+
+        return cqlib_cir
 
     def _execute_measurement(self, measurement: Any, raw_result: Dict[str, Any]) -> Any:
         """Dispatches the raw result to the appropriate measurement processing implementation."""
@@ -378,12 +306,11 @@ class CircuitExecutor:
     @_execute_measurement_impl.register
     def _(self, measurement: qml.measurements.ExpectationMP, raw_result: Dict[str, Any]) -> float:
         """Calculates the expectation value for Pauli-Z observables from raw probabilities."""
-        if 'probabilities' not in raw_result:
-            raise ValueError("raw_result must contain 'probabilities' key")
-
-        probabilities = raw_result['probabilities']
-        if not isinstance(probabilities, dict):
-            raise ValueError("probabilities must be a dictionary")
+        # Process probabilities via _extract_probabilities to handle endianness reversal.
+        probabilities = self._extract_probabilities(raw_result)
+        
+        if not probabilities or not isinstance(probabilities, dict):
+            raise ValueError("Execution results must contain a valid 'probabilities' dictionary")
 
         pauli_indices = list(measurement.obs.wires.labels)
         expectation = 0.0
@@ -409,12 +336,24 @@ class CircuitExecutor:
         statevector = raw_result.get('statevector')
         if statevector is None:
             raise ValueError("Statevector not found in execution results")
-        return statevector
+        
+        # Ensure the statevector is returned as a dense 1D Numpy array for PennyLane compatibility.
+        if isinstance(statevector, dict):
+            num_qubits = len(next(iter(statevector.keys())))
+            dense_state = np.zeros(2 ** num_qubits, dtype=complex)
+            for bitstring, amplitude in statevector.items():
+                # Reverse the dictionary keys to align with the expected endianness format.
+                index = int(bitstring[::-1], 2)
+                dense_state[index] = amplitude
+            return dense_state
+
+        return np.array(statevector)
 
     @_execute_measurement_impl.register
     def _(self, measurement: qml.measurements.SampleMP, raw_result: Dict[str, Any]) -> np.ndarray:
         """Extracts measurement samples from execution results, supporting partial measurement."""
-        samples = raw_result.get('samples')
+        # Extract samples, ensuring endianness reversal and format conversion are applied.
+        samples = self._extract_samples(raw_result)
         if samples is None:
             raise ValueError("No measurement samples found in execution results")
             
@@ -446,7 +385,7 @@ class CircuitExecutor:
         return {
             'probabilities': simulator.probs(),
             'samples': simulator.sample(is_raw_data=True),
-            'statevector': dict(reversed(simulator.statevector().items()))
+            'statevector': simulator.statevector() 
         }
 
     def _execute_tianyan_simulator(self, cqlib_circuit: Any, cqlib_qcis: str) -> Dict[str, Any]:
@@ -503,22 +442,13 @@ class CircuitExecutor:
     def _extract_samples(self, raw_result: Dict[str, Any]) -> Any:
         """Extracts and converts samples to the format expected by PennyLane."""
         samples = raw_result.get('samples')
-        if samples is not None and self._backend_type == BackendType.LOCAL_SIMULATOR:
+        # Uniformly convert sample formats for all backends to handle bit reversal via little_endian.
+        if samples is not None:
             return samples_to_pennylane_format(samples, self.device_config['wires'])
         return samples
 
     def _format_probabilities(self, probabilities: Dict[str, float]) -> np.ndarray:
-        """Converts a probability dictionary into a dense NumPy array distribution.
-
-        Args:
-            probabilities: A dictionary mapping binary bitstrings to float probabilities.
-
-        Returns:
-            A 1D numpy array containing the dense probability distribution.
-
-        Raises:
-            ValueError: If the input probability dictionary is empty.
-        """
+        """Converts a probability dictionary into a dense NumPy array distribution."""
         if not probabilities:
             raise ValueError("No probability distribution found in execution results")
         
@@ -535,16 +465,7 @@ class CircuitExecutor:
 def decimal_to_binary_array(
     decimal_value: int, num_bits: int, little_endian: bool = True
 ) -> np.ndarray:
-    """Converts a decimal integer into a binary numpy array.
-
-    Args:
-        decimal_value: The integer value to convert.
-        num_bits: The fixed width of the resulting binary array.
-        little_endian: If True, reverses the bit order (LSB first).
-
-    Returns:
-        A 1D numpy array of bits.
-    """
+    """Converts a decimal integer into a binary numpy array."""
     binary_string = np.binary_repr(int(decimal_value), width=num_bits)
     bits = np.array([int(bit) for bit in binary_string])
     return bits[::-1] if little_endian else bits
@@ -556,20 +477,7 @@ def samples_to_pennylane_format(
     measured_qubits: Optional[List[int]] = None,
     little_endian: bool = True
 ) -> np.ndarray:
-    """Converts raw sample data into a PennyLane compatible binary matrix.
-
-    Args:
-        samples: A list or 1D array of decimal sample values.
-        num_qubits: Total number of qubits in the circuit.
-        measured_qubits: Explicit list of qubit indices that were measured.
-        little_endian: If True, enforces little-endian bit ordering.
-
-    Returns:
-        A 2D numpy array of shape (n_shots, num_bits) containing binary samples.
-
-    Raises:
-        ValueError: If sample dimensions cannot be inferred from inputs.
-    """
+    """Converts raw sample data into a PennyLane compatible binary matrix."""
     samples_array = np.asarray(samples)
     
     if measured_qubits is not None:
