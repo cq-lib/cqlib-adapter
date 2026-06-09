@@ -28,7 +28,6 @@ from qiskit.result import Result
 
 from ..utils.api_client import ApiClient
 
-
 class TianYanJob(JobV1):
     """
     A class representing a job executed on the TianYan quantum computing platform.
