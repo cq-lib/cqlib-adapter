@@ -1,7 +1,6 @@
-# test_backends.py
 # This code is part of cqlib.
 #
-# Copyright (C) 2025 China Telecom Quantum Group.
+# Copyright (C) 2025-2026 China Telecom Quantum Group.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE file in the root directory
@@ -19,6 +18,7 @@ from pennylane.devices import Device
 
 # Configuration parameters
 TOKEN = os.getenv("CQLIB_TOKEN", None)
+
 SHOTS = 500
 WIRES = 2
 INITIAL_PARAMS = np.array([0.5, 0.8])

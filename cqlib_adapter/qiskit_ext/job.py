@@ -26,8 +26,7 @@ from qiskit.providers import JobV1, JobStatus
 from qiskit.providers.backend import Backend
 from qiskit.result import Result
 
-from .api_client import ApiClient
-
+from ..utils.api_client import ApiClient
 
 class TianYanJob(JobV1):
     """

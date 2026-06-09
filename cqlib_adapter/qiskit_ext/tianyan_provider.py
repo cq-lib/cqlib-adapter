@@ -22,7 +22,7 @@ from pathlib import Path
 
 import dotenv
 
-from .api_client import ApiClient
+from ..utils.api_client import ApiClient
 from .tianyan_backend import TianYanBackend, BackendConfiguration, CqlibAdapterError, \
     BackendStatus, TianYanQuantumBackend, TianYanSimulatorBackend
 

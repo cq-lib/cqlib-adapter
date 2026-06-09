@@ -1,6 +1,6 @@
 # This code is part of cqlib.
 #
-# Copyright (C) 2025 China Telecom Quantum Group.
+# Copyright (C) 2025-2026 China Telecom Quantum Group.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE file in the root directory
@@ -18,6 +18,7 @@ for both quantum computers and simulators on the TianYan platform.
 """
 
 import json
+import warnings
 from collections import namedtuple
 from datetime import datetime
 from enum import IntEnum
@@ -29,11 +30,10 @@ from qiskit.circuit.library.standard_gates import CZGate, RZGate, HGate, \
 from qiskit.providers import BackendV2 as Backend, Options, JobV1, QubitProperties
 from qiskit.transpiler import Target, InstructionProperties, generate_preset_pass_manager
 
-from .adapter import to_cqlib
-from .api_client import ApiClient
+from ..utils.api_client import ApiClient
 from .gates import X2PGate, X2MGate, Y2MGate, Y2PGate, XY2MGate, XY2PGate, RxyGate
 from .job import TianYanJob
-
+from ..utils.converter import qiskit_to_cqlib
 
 # pylint: disable=invalid-name
 class BackendType(IntEnum):
@@ -157,7 +157,6 @@ class BackendConfiguration:
 
         if backend_type == BackendType.quantum_computer:
             qpu = api_client.get_quantum_computer_config(backend_id)
-            n_qubits = max(int(q[1:]) for q in qpu['qubits']) + 1
             qubits = [int(q[1:]) for q in qpu['qubits'] if q not in disabled_qubits]
             coupling_map = []
 
@@ -328,7 +327,7 @@ class TianYanBackend(Backend):
             circuits = [pm.run(qc) for qc in circuits]
 
         task_ids = self._api_client.submit_job(
-            [to_cqlib(circ) for circ in circuits],
+            [qiskit_to_cqlib(circ) for circ in circuits],
             machine=self.configuration.backend_name,
             shots=shots,
         )
