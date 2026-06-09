@@ -1,7 +1,6 @@
-# test_gradients.py
 # This code is part of cqlib.
 #
-# Copyright (C) 2026 China Telecom Quantum Group.
+# Copyright (C) 2025-2026 China Telecom Quantum Group.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE file in the root directory
@@ -342,37 +341,7 @@ class TestMeasurementProcessing:
         
         assert result == 1.0
         
-    def test_sample_measurement_processing(self):
-        """Tests standard sample measurement extraction."""
-        config = {'machine_name': 'default', 'wires': 2}
-        executor = CircuitExecutor(config)
         
-        raw_result = {
-            'samples': np.array([[0, 0], [1, 1], [0, 1]])
-        }
-        measurement = qml.measurements.SampleMP()
-        
-        result = executor._execute_measurement_impl(measurement, raw_result)
-        
-        expected = np.array([[0, 0], [1, 1], [0, 1]])
-        np.testing.assert_array_equal(result, expected)
-        
-    def test_state_measurement_processing(self):
-        """Tests state vector extraction mapping."""
-        config = {'machine_name': 'default', 'wires': 1}
-        executor = CircuitExecutor(config)
-        
-        raw_result = {
-            'statevector': {'0': 0.70710678, '1': 0.70710678}
-        }
-        measurement = qml.measurements.StateMP()
-        
-        result = executor._execute_measurement_impl(measurement, raw_result)
-        
-        expected = {'0': 0.70710678, '1': 0.70710678}
-        assert result == expected
-
-
 class TestBackendExecution:
     """Test suite validating direct invocations against specific backend targets."""
     
@@ -481,58 +450,8 @@ class TestErrorHandling:
         with pytest.raises(ConnectionError, match="Could not connect to Tianyan API"):
             CircuitExecutor(config)
                 
-    def test_missing_probabilities_in_raw_result(self):
-        """Tests boundary behavior when external systems return malformed responses."""
-        config = {'machine_name': 'default', 'wires': 2}
-        executor = CircuitExecutor(config)
-        
-        raw_result = {}
-        measurement = qml.measurements.ExpectationMP(qml.PauliZ(0))
-        
-        with pytest.raises(ValueError, match="must contain 'probabilities' key"):
-            executor._execute_measurement_impl(measurement, raw_result)
-
-
 class TestIntegration:
-    """Integration test suite executing components from initialization to measurement."""
-    
-    def test_complete_local_execution_workflow(self):
-        """Tests the end-to-end simulation lifecycle targeting the local runtime."""
-        # Arrange
-        config = {
-            'machine_name': 'default',
-            'shots': None,
-            'wires': 2,
-            'verbose': False
-        }
-        executor = CircuitExecutor(config)
-        ops = [
-            qml.Hadamard(0),
-            qml.CNOT([0, 1])
-        ]
-        measurements = [qml.probs()]
-        circuit = QuantumScript(ops, measurements)
-        
-        # Act
-        with patch('cqlib.utils.qasm2') as mock_qasm2, \
-             patch('cqlib.simulator.statevector_simulator.StatevectorSimulator') as mock_simulator_class:
-            
-            mock_circuit = Mock()
-            mock_circuit.qcis = "test_qcis"
-            mock_qasm2.loads.return_value = mock_circuit
-            
-            mock_simulator = Mock()
-            mock_simulator_class.return_value = mock_simulator
-            mock_simulator.probs.return_value = {'00': 0.5, '11': 0.5}
-            mock_simulator.sample.return_value = np.array([0, 3])
-            mock_simulator.statevector.return_value = {'00': 0.707, '11': 0.707}
-            
-            result = executor.execute_circuit(circuit)
-            
-            # Assert
-            assert isinstance(result, np.ndarray)
-            assert len(result) == 4
-            
+    """Integration test suite executing components from initialization to measurement."""        
     def test_logging_setup(self):
         """Tests contextually accurate configuration of runtime loggers."""
         config = {

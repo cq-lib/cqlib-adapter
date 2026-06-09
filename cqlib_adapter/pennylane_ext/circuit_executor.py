@@ -1,6 +1,6 @@
 # This code is part of cqlib.
 #
-# Copyright (C) 2026 China Telecom Quantum Group.
+# Copyright (C) 2025-2026 China Telecom Quantum Group.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE file in the root directory
@@ -31,8 +31,8 @@ from pennylane.tape import QuantumScript
 from cqlib import TianYanPlatform, Circuit
 from cqlib.mapping import transpile_qcis
 from cqlib.simulator import StatevectorSimulator
-from cqlib.utils import qasm2
 
+from ..utils.converter import pennylane_to_cqlib
 
 class BackendType(Enum):
     """Enumeration of supported quantum computation backend types."""
@@ -55,7 +55,6 @@ class CircuitExecutor:
         self.cqlib_backend: Optional[TianYanPlatform] = None
         self._execution_count = 0
 
-        # Local import to prevent circular dependencies during module initialization
         from .device import CQLibDevice
 
         machine_name = self.device_config.get('machine_name', 'default')
@@ -195,77 +194,19 @@ class CircuitExecutor:
     def _convert_to_cqlib_format(self, circuit: QuantumScript) -> Tuple[Any, str]:
         """Converts a PennyLane circuit into CQLib-compatible parsed objects and QCIS string."""
         try:
-            cqlib_circuit = self._build_cqlib_circuit(circuit)
+            mapper = self.device_config.get('mapping', None)
+            needs_decompose = (self._backend_type == BackendType.TIANYAN_HARDWARE)
+
+            cqlib_circuit = pennylane_to_cqlib(
+                tape=circuit,
+                mapping=mapper,
+                decompose=needs_decompose
+            )
             return cqlib_circuit, cqlib_circuit.qcis
         except Exception as error:
             self.logger.error("Circuit conversion from PennyLane to CQLib format failed: %s", error)
             raise ValueError(f"Circuit conversion failed: {error}") from error
 
-    def _build_cqlib_circuit(self, circuit: QuantumScript) -> Circuit:
-        """Directly constructs a CQLib Circuit object from a PennyLane quantum circuit."""
-        device_wires = self.device_config.get('wires')
-        if isinstance(device_wires, int):
-            num_wires = device_wires
-        elif device_wires is not None and hasattr(device_wires, '__len__'):
-            num_wires = len(device_wires)
-        else:
-            num_wires = max(circuit.wires.labels) + 1 if circuit.wires else 1
-
-        cqlib_cir = Circuit(num_wires)
-
-        def map_operation(op, target_circuit: Circuit):
-            op_name = op.name
-            wires = op.wires.tolist()
-            params = op.parameters
-
-            if op_name == "X2PGate":
-                target_circuit.x2p(wires[0])
-            elif op_name == "X2MGate":
-                target_circuit.x2m(wires[0])
-            elif op_name == "Y2PGate":
-                target_circuit.y2p(wires[0])
-            elif op_name == "Y2MGate":
-                target_circuit.y2m(wires[0])
-            elif op_name == "XY2PGate":
-                target_circuit.xy2p(wires[0], params[0])
-            elif op_name == "XY2MGate":
-                target_circuit.xy2m(wires[0], params[0])
-            elif op_name == "PauliX":
-                target_circuit.x(wires[0])
-            elif op_name == "PauliY":
-                target_circuit.y(wires[0])
-            elif op_name == "PauliZ":
-                target_circuit.z(wires[0])
-            elif op_name == "Hadamard":
-                target_circuit.h(wires[0])
-            elif op_name == "RX":
-                target_circuit.rx(wires[0], params[0])
-            elif op_name == "RY":
-                target_circuit.ry(wires[0], params[0])
-            elif op_name == "RZ":
-                target_circuit.rz(wires[0], params[0])
-            elif op_name == "CNOT":
-                target_circuit.cx(wires[0], wires[1])
-            elif op_name == "CZ":
-                target_circuit.cz(wires[0], wires[1])
-            elif op_name == "S":
-                target_circuit.s(wires[0])
-            elif op_name == "T":
-                target_circuit.t(wires[0])
-            else:
-                try:
-                    decomposed_ops = op.decomposition()
-                    for d_op in decomposed_ops:
-                        map_operation(d_op, target_circuit)
-                except Exception as e:
-                    self.logger.warning(
-                        f"Operation {op_name} not natively mapped and decomposition failed: {e}"
-                    )
-
-        for op in circuit.operations:
-            map_operation(op, cqlib_cir)
-
-        return cqlib_cir
 
     def _execute_measurement(self, measurement: Any, raw_result: Dict[str, Any]) -> Any:
         """Dispatches the raw result to the appropriate measurement processing implementation."""
@@ -478,7 +419,7 @@ def samples_to_pennylane_format(
     little_endian: bool = True
 ) -> np.ndarray:
     """Converts raw sample data into a PennyLane compatible binary matrix."""
-    samples_array = np.asarray(samples)
+    samples_array = np.asarray(samples, dtype=int)
     
     if measured_qubits is not None:
         num_bits = len(measured_qubits)
@@ -490,10 +431,9 @@ def samples_to_pennylane_format(
         max_value = np.max(samples_array)
         num_bits = int(np.ceil(np.log2(max_value + 1))) if max_value > 0 else 1
 
-    n_shots = len(samples_array)
-    binary_matrix = np.zeros((n_shots, num_bits), dtype=int)
+    if not len(samples_array):
+        return np.empty((0, num_bits), dtype=int)
+
+    binary_matrix = ((samples_array[:, None] & (1 << np.arange(num_bits))) > 0).astype(int)
     
-    for i, sample in enumerate(samples_array):
-        binary_matrix[i] = decimal_to_binary_array(sample, num_bits, little_endian)
-        
-    return binary_matrix
+    return binary_matrix if little_endian else binary_matrix[:, ::-1]

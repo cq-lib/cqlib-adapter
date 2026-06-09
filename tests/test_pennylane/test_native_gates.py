@@ -1,7 +1,6 @@
-# test_gradients.py
 # This code is part of cqlib.
 #
-# Copyright (C) 2026 China Telecom Quantum Group.
+# Copyright (C) 2025-2026 China Telecom Quantum Group.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE file in the root directory
