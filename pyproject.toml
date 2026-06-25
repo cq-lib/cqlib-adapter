@@ -36,9 +36,9 @@ keywords = [
 [project.entry-points."pennylane.plugins"]
 "cqlib.device" = "cqlib_adapter.pennylane_ext.device:CQLibDevice"
 
-[tool.setuptools]
-packages = ["cqlib_adapter", "cqlib_adapter.qiskit_ext", "cqlib_adapter.pennylane_ext"]
-include-package-data = true
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cqlib_adapter*"]
 
 [tool.setuptools.package-data]
 "cqlib_adapter.pennylane_ext" = ["cqlib_config.toml"]
