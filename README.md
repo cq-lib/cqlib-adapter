@@ -1,4 +1,4 @@
-# cqlib-adapter 2
+# cqlib-adapter
 
 `cqlib-adapter` 将 Qiskit、Cirq、PennyLane 和 CUDA-Q 电路接入新版 `cqlib`、`cqlib-tianyan` 与天衍量子计算云平台。
 
@@ -40,6 +40,12 @@ CUDA-Q 官方当前支持 Linux 和 Apple Silicon macOS；Windows 用户应在 W
 
 `01_conversion.py` 展示框架线路到 cqlib/QCIS 的最小路径；`04_grover_simulator.py` 会把框架参考结果与真实 cqlib 本地模拟结果比较，只有语义一致才输出 `PASS`。位序、statevector scaling、换基测量、mock 和显式真机示例见 `examples/README.md` 及各框架子目录的 README。`03_tianyan_cloud.py` 和 `031_tianyan_topology.py` 会在获得明确授权及凭证后创建外部任务，不属于默认示例。
 
+CUDA-Q 的正式转换路径直接读取 kernel/builder 的 Quake MLIR 对象并构造
+`cqlib.Circuit`，不依赖 OpenQASM 2，也不会在不支持的 operation 上回退到
+QASM。`cudaq_to_openqasm()` 仅保留为用户主动调用的诊断导出工具。支持固定宽度
+的多个 `qalloc`、参数化 decorator、简单标量参数 builder、可静态求值的循环、
+终端 `mx`/`my`/`mz`，没有显式测量时会补全量 `mz`；动态线路结构会明确报错。
+
 ### PennyLane 换基测量
 
 PennyLane 适配器支持有限 shots 下单 wire Pauli X/Y/Z observable 的 `qml.counts`、`qml.sample`、`qml.expval` 和 `qml.var`。转换器会在测量前插入对应的 basis rotation（X 基使用 H，Y 基使用 S†+H，Z 基无需旋转），再把 canonical bit 结果转换成 PennyLane 的 ±1 本征值。同一 wire 同时请求不兼容测量基时会明确报错。最小离线验证：
@@ -54,7 +60,7 @@ python examples/pennylane/08_basis_measurement.py
 
 ```bash
 conda env create -f environment-dev.yml
-conda activate cqlib-adapter2-dev
+conda activate cqlib-adapter-dev
 ```
 
 先分别构建并安装工作区中的新版 Python 绑定（只编译底座，不需要修改 Rust）：

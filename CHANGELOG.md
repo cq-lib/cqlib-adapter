@@ -22,7 +22,11 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 - Real-cqlib offline cloud doubles, opt-in Tianyan live test and three runnable Qiskit examples.
 - PennyLane Device/QNode, native operations, counts/probs/sample conversion, local cqlib simulation, mock/live tests and examples.
 - Cirq Circuit conversion, QCIS gates, DeviceMetadata, Sampler/run_sweep, measurement-key ResultDict conversion, local cqlib simulation, mock/live topology tests and examples.
-- CUDA-Q kernel/OpenQASM 2 conversion, automatic measurement, QCIS compilation, target metadata, sync/async execution, compatible sample results, local simulation, Linux CI and opt-in live-cloud validation.
+- Direct CUDA-Q Quake MLIR-to-cqlib conversion with parameterized kernels,
+  fixed multi-allocation mapping, static loops, basis measurements, explicit
+  unsupported-program errors, QCIS compilation, target metadata, sync/async
+  execution, compatible sample results, local simulation, Linux CI and
+  opt-in live-cloud validation.
 - Cross-framework exact statevector scaling checks, routed logical-layout restoration and basis-measurement examples.
 
 ### Security

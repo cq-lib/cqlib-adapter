@@ -9,7 +9,7 @@ Run this checklist from a clean checkout before publishing.
 3. Run Ruff, formatting, mypy, `pip check` and the complete non-cloud pytest
    suite documented in `docs/testing.md`.
 4. On Linux/WSL, run the independent CUDA-Q suite in
-   `docs/m5-cudaq-testing.md` with `qpp-cpu`.
+   `docs/cudaq-testing.md` with `qpp-cpu`.
 5. Build the sdist and wheel and run `python -m twine check dist/*`.
 6. Inspect both archives and confirm they contain package sources, typing
    metadata, documentation, tests, examples, license and no generated or

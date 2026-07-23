@@ -41,7 +41,7 @@ python examples\pennylane\04_grover_simulator.py
 python -m pytest tests\pennylane -q
 ```
 
-Only after all offline commands pass, load the key into the current process environment using the hidden-input PowerShell procedure in `docs/m2-qiskit-testing.md`, verify `DEFAULT_DEVICE`, and run `examples/pennylane/03_tianyan_cloud.py`. Never fill the committed blank key field. Then run `python examples\pennylane\031_tianyan_topology.py` to validate a selected three-qubit physical layout before submitting the topology test. The script prints device metadata before submission and skips without creating a task when the device is unavailable.
+Only after all offline commands pass, load the key into the current process environment using the hidden-input PowerShell procedure in `docs/qiskit-testing.md`, verify `DEFAULT_DEVICE`, and run `examples/pennylane/03_tianyan_cloud.py`. Never fill the committed blank key field. Then run `python examples\pennylane\031_tianyan_topology.py` to validate a selected three-qubit physical layout before submitting the topology test. The script prints device metadata before submission and skips without creating a task when the device is unavailable.
 
 The CI-safe live test is skipped by default. Explicit authorization requires:
 

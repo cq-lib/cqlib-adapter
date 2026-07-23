@@ -1,3 +1,15 @@
+# This code is part of cqlib.
+#
+# Copyright (C) 2025-2026 China Telecom Quantum Group.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 """Conversion between Cirq circuits and the cqlib construction IR."""
 
 from __future__ import annotations
@@ -286,7 +298,7 @@ def cirq_to_cqlib(
                 key = cirq.measurement_key_name(operation)
                 if key in seen_keys:
                     raise AdapterConversionError(
-                        f"repeated Cirq measurement key {key!r} is not supported in M4"
+                        f"repeated Cirq measurement key {key!r} is not supported"
                     )
                 seen_keys.add(key)
                 confusion_map = getattr(gate, "confusion_map", None)
@@ -310,7 +322,7 @@ def cirq_to_cqlib(
             if measurement_seen:
                 raise AdapterConversionError(
                     f"Cirq operation {operation!r} at index {index} occurs after measurement; "
-                    "M4 accepts final measurements only"
+                    "the Cirq adapter accepts final measurements only"
                 )
             qubits = tuple(wire_map[qubit] for qubit in operation.qubits)
             _append_cqlib_gate(output, operation, qubits)
@@ -364,7 +376,7 @@ def _operation_parts(operation: Any) -> tuple[str, tuple[int, ...], tuple[float,
     value_instruction = operation.instruction
     instruction = getattr(value_instruction, "instruction", value_instruction)
     if instruction is None:
-        raise AdapterConversionError("cqlib classical control is not supported in M4")
+        raise AdapterConversionError("cqlib classical control is not supported")
     name = str(instruction.name).strip().lower()
     params = tuple(
         float(parameter.evaluate()) if hasattr(parameter, "evaluate") else float(parameter)

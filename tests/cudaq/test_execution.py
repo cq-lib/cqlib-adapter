@@ -1,3 +1,15 @@
+# This code is part of cqlib.
+#
+# Copyright (C) 2025-2026 China Telecom Quantum Group.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 from __future__ import annotations
 
 import numpy as np
@@ -31,8 +43,15 @@ def zero() -> None:
 def x_basis_plus() -> None:
     qubit = cudaq.qubit()
     h(qubit)  # noqa: F821  # Prepare |+>.
-    h(qubit)  # noqa: F821  # Rotate X basis to Z before mz.
-    mz(qubit)  # noqa: F821
+    mx(qubit)  # noqa: F821
+
+
+@cudaq.kernel
+def y_basis_plus_i() -> None:
+    qubit = cudaq.qubit()
+    h(qubit)  # noqa: F821
+    s(qubit)  # noqa: F821  # Prepare |+i>.
+    my(qubit)  # noqa: F821
 
 
 @cudaq.kernel
@@ -133,6 +152,10 @@ def test_local_cqlib_simulator_supports_measurement_only_zero_state() -> None:
 
 def test_local_cqlib_simulator_supports_explicit_x_basis_measurement() -> None:
     assert dict(CqlibSimulator(1).sample(x_basis_plus, shots_count=12)) == {"0": 12}
+
+
+def test_local_cqlib_simulator_supports_explicit_y_basis_measurement() -> None:
+    assert dict(CqlibSimulator(1).sample(y_basis_plus_i, shots_count=12)) == {"0": 12}
 
 
 def test_local_cqlib_statevector_matches_cudaq_up_to_global_phase() -> None:

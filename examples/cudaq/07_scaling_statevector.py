@@ -1,9 +1,21 @@
+# This code is part of cqlib.
+#
+# Copyright (C) 2025-2026 China Telecom Quantum Group.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 """Exact-state scaling comparison: CUDA-Q versus compiled cqlib native QCIS.
 
 This is an offline conversion regression, not a shot-based sampling benchmark.
 Each concrete CUDA-Q kernel follows the full adapter path:
 
-    CUDA-Q -> OpenQASM 2 -> cqlib Circuit -> native QCIS -> cqlib Statevector
+    CUDA-Q -> Quake MLIR -> cqlib Circuit -> native QCIS -> cqlib Statevector
 
 Smallest test:
     python examples/cudaq/07_scaling_statevector.py --smoke
@@ -35,11 +47,9 @@ DEFAULT_DEPTHS = (5, 10, 15, 20)
 SEED = 2026
 FIDELITY_ATOL = 1e-10
 NORM_ATOL = 1e-10
-# CUDA-Q 0.15's OpenQASM 2 exporter writes rotation angles with about six
-# decimal digits. The required QASM hop therefore introduces component-level
-# quantization even when qpp-cpu runs in fp64. Fidelity remains independently
-# constrained to 1 - 1e-10 and the exact observed error is always logged.
-AMPLITUDE_ATOL = 1e-6
+# Direct Quake conversion retains full floating-point parameters. The aligned
+# component error is therefore held to the same strict scale as state fidelity.
+AMPLITUDE_ATOL = 1e-10
 
 
 @dataclass(frozen=True, slots=True)

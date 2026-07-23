@@ -63,7 +63,7 @@ python -m pytest tests\integration\test_cirq_cqlib_runtime.py -q
 python -m pytest tests\cirq -q
 ```
 
-Only after all offline checks pass, load the key into the current process environment using the hidden-input PowerShell procedure in `docs/m2-qiskit-testing.md` and verify `DEFAULT_DEVICE` in `examples/cirq/03_tianyan_cloud.py`. Never fill the committed blank key field:
+Only after all offline checks pass, load the key into the current process environment using the hidden-input PowerShell procedure in `docs/qiskit-testing.md` and verify `DEFAULT_DEVICE` in `examples/cirq/03_tianyan_cloud.py`. Never fill the committed blank key field:
 
 ```powershell
 python examples\cirq\03_tianyan_cloud.py

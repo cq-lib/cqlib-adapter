@@ -58,7 +58,7 @@ python -m pip check
 The release-candidate checkpoint passes 275 Windows tests with CUDA-Q and live-cloud tests skipped. The independent Linux/WSL CUDA-Q suite passes 40 focused tests, while the common plus CUDA-Q coverage selection passes 128 tests. Counts may grow as tests are added; command exit status and assertions are authoritative. See the per-module documents under `docs/` for framework-specific commands.
 
 CUDA-Q has an independent Linux workflow in `.github/workflows/cudaq.yml`.
-See `docs/m5-cudaq-testing.md` for its module-by-module WSL commands.
+See `docs/cudaq-testing.md` for its module-by-module WSL commands.
 
 Real cloud tests create external tasks. They require explicit selection and all documented environment gates; never run them as part of a release check:
 

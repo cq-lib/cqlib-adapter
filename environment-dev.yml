@@ -1,4 +1,4 @@
-name: cqlib-adapter2-dev
+name: cqlib-adapter-dev
 channels:
   - conda-forge
 dependencies:

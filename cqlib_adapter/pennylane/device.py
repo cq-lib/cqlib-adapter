@@ -1,3 +1,15 @@
+# This code is part of cqlib.
+#
+# Copyright (C) 2025-2026 China Telecom Quantum Group.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 """PennyLane 0.45 Device backed by cqlib compilation and Tianyan."""
 
 from __future__ import annotations
@@ -209,7 +221,7 @@ class TianyanDevice(Device):
 
     def _shots_for(self, tape: QuantumScript) -> int:
         if tape.shots.has_partitioned_shots:
-            raise AdapterConversionError("PennyLane shot vectors are not supported in M3")
+            raise AdapterConversionError("PennyLane shot vectors are not supported")
         shots = tape.shots.total_shots
         if shots is None:
             shots = self.shots.total_shots

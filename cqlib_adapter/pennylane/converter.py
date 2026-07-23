@@ -1,3 +1,15 @@
+# This code is part of cqlib.
+#
+# Copyright (C) 2025-2026 China Telecom Quantum Group.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 """Conversion between PennyLane QuantumScripts and cqlib construction IR."""
 
 from __future__ import annotations
@@ -305,7 +317,7 @@ def _operation_parts(operation: Any) -> tuple[str, tuple[int, ...], tuple[float,
     value_instruction = operation.instruction
     instruction = getattr(value_instruction, "instruction", value_instruction)
     if instruction is None:
-        raise AdapterConversionError("cqlib classical control is not supported in M3")
+        raise AdapterConversionError("cqlib classical control is not supported")
     name = str(instruction.name).strip().lower()
     params = tuple(
         float(parameter.evaluate()) if hasattr(parameter, "evaluate") else float(parameter)
@@ -397,7 +409,7 @@ def cqlib_to_pennylane(
         elif name in {"barrier", "b"}:
             operations.append(qml.Barrier(wires=wires, only_visual=True))
         elif name == "reset":
-            raise AdapterConversionError("cqlib reset conversion is not supported in M3")
+            raise AdapterConversionError("cqlib reset conversion is not supported")
         else:
             operations.append(_pennylane_operation(name, wires, params))
     result_wires = measured or list(wire_order)
