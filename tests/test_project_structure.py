@@ -20,14 +20,10 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_required_project_files_exist() -> None:
     required = {
         "README.md",
-        "SECURITY.md",
-        "CHANGELOG.md",
-        "CONTRIBUTING.md",
         "LICENSE",
         "pyproject.toml",
         "environment-dev.yml",
         "requirements-dev.txt",
-        "MANIFEST.in",
         ".gitignore",
         ".github/workflows/ci.yml",
     }

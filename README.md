@@ -108,7 +108,7 @@ python -m twine check dist/*
 python -m pytest -m cloud
 ```
 
-凭证只应通过当前终端的隐藏输入注入环境变量，不能写入源码或命令历史。详见 `SECURITY.md` 和各框架的 `03_tianyan_cloud.py`。
+凭证只应通过当前终端的隐藏输入注入环境变量，不能写入源码、配置文件、命令历史或日志。真机运行结束后必须清除当前进程中的凭证环境变量；具体操作见各框架的 `03_tianyan_cloud.py`。
 
 ## 公共核心
 

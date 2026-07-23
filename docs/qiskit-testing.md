@@ -138,7 +138,7 @@ $env:CQLIB_RUN_CLOUD = "1"
 python -m pytest tests/cloud/test_qiskit_tianyan_live.py -vv -s
 ```
 
-结束后执行 `Remove-Item Env:TIANYAN_API_KEY`。不要把真实密钥写入源码、命令文本或日志；完整原则见 `SECURITY.md`。
+结束后执行 `Remove-Item Env:TIANYAN_API_KEY`。不要把真实密钥写入源码、配置文件、命令文本或日志，也不要提交任何云任务结果或凭证文件。
 
 或运行：
 
