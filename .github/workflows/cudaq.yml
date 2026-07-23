@@ -1,0 +1,56 @@
+name: CUDA-Q Linux
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cudaq:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: cq-lib/cqlib
+          path: .ci-deps/cqlib
+      - uses: actions/checkout@v4
+        with:
+          repository: cq-lib/cqlib-tianyan
+          path: .ci-deps/cqlib-tianyan
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install CUDA-Q build and test dependencies
+        run: python -m pip install --upgrade pip maturin pytest "cudaq>=0.15,<0.16"
+      - name: Build and install cqlib Python extension
+        working-directory: .ci-deps/cqlib/crates/binding-python
+        run: python -m pip install .
+      - name: Build and install cqlib-tianyan Python extension
+        working-directory: .ci-deps/cqlib-tianyan/crates/binding-python
+        run: python -m pip install .
+      - name: Install adapter
+        run: python -m pip install --no-deps -e .
+      - name: Verify CUDA-Q CPU target
+        run: >-
+          python -c "import cudaq; cudaq.set_target('qpp-cpu');
+          print(cudaq.get_target())"
+      - name: Run CUDA-Q and native integration tests
+        run: >-
+          python -m pytest
+          tests/cudaq
+          tests/integration/test_cudaq_cqlib_runtime.py
+          tests/integration/test_cqlib_runtime.py
+          tests/integration/test_cqlib_tianyan_runtime.py
+          -m "not cloud and not slow"

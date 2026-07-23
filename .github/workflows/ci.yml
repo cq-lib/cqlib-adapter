@@ -1,0 +1,204 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install quality tools and typed framework surface
+        run: python -m pip install --upgrade pip pytest ruff mypy "qiskit>=2.5,<3"
+      - name: Install project without unpublished runtime dependencies
+        run: python -m pip install --no-deps -e .
+      - name: Ruff lint
+        run: python -m ruff check .
+      - name: Ruff format
+        run: python -m ruff format --check .
+      - name: Type check
+        run: python -m mypy cqlib_adapter
+      - name: Unit tests
+        run: python -m pytest -m "not cloud and not slow"
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install test tools
+        run: python -m pip install --upgrade pip pytest
+      - name: Install project without unpublished runtime dependencies
+        run: python -m pip install --no-deps -e .
+      - name: Run offline tests
+        run: python -m pytest -m "not cloud and not slow"
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Build distributions
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check dist/*
+      - name: Smoke-test wheel without unpublished runtime dependencies
+        run: |
+          python -m pip install --no-deps dist/*.whl
+          python -c "import cqlib_adapter; print(cqlib_adapter.__version__)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: dist/*
+
+
+  qiskit:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: cq-lib/cqlib
+          path: .ci-deps/cqlib
+      - uses: actions/checkout@v4
+        with:
+          repository: cq-lib/cqlib-tianyan
+          path: .ci-deps/cqlib-tianyan
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Qiskit build and test dependencies
+        run: python -m pip install --upgrade pip maturin pytest "qiskit>=2.5,<3"
+      - name: Build and install cqlib Python extension
+        working-directory: .ci-deps/cqlib/crates/binding-python
+        run: python -m pip install .
+      - name: Build and install cqlib-tianyan Python extension
+        working-directory: .ci-deps/cqlib-tianyan/crates/binding-python
+        run: python -m pip install .
+      - name: Install adapter
+        run: python -m pip install --no-deps -e .
+      - name: Run Qiskit and native Python integration tests
+        run: >-
+          python -m pytest
+          tests/qiskit
+          tests/integration/test_cqlib_runtime.py
+          tests/integration/test_cqlib_tianyan_runtime.py
+          -m "not cloud and not slow"
+
+  pennylane:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: cq-lib/cqlib
+          path: .ci-deps/cqlib
+      - uses: actions/checkout@v4
+        with:
+          repository: cq-lib/cqlib-tianyan
+          path: .ci-deps/cqlib-tianyan
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install PennyLane build and test dependencies
+        run: python -m pip install --upgrade pip maturin pytest "pennylane>=0.45,<0.46"
+      - name: Build and install cqlib Python extension
+        working-directory: .ci-deps/cqlib/crates/binding-python
+        run: python -m pip install .
+      - name: Build and install cqlib-tianyan Python extension
+        working-directory: .ci-deps/cqlib-tianyan/crates/binding-python
+        run: python -m pip install .
+      - name: Install adapter
+        run: python -m pip install --no-deps -e .
+      - name: Run PennyLane and native Python integration tests
+        run: >-
+          python -m pytest
+          tests/pennylane
+          tests/integration/test_pennylane_cqlib_runtime.py
+          tests/integration/test_cqlib_runtime.py
+          tests/integration/test_cqlib_tianyan_runtime.py
+          -m "not cloud and not slow"
+
+  cirq:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: cq-lib/cqlib
+          path: .ci-deps/cqlib
+      - uses: actions/checkout@v4
+        with:
+          repository: cq-lib/cqlib-tianyan
+          path: .ci-deps/cqlib-tianyan
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Cirq build and test dependencies
+        run: python -m pip install --upgrade pip maturin pytest "cirq-core>=1.7,<2"
+      - name: Build and install cqlib Python extension
+        working-directory: .ci-deps/cqlib/crates/binding-python
+        run: python -m pip install .
+      - name: Build and install cqlib-tianyan Python extension
+        working-directory: .ci-deps/cqlib-tianyan/crates/binding-python
+        run: python -m pip install .
+      - name: Install adapter
+        run: python -m pip install --no-deps -e .
+      - name: Run Cirq and native Python integration tests
+        run: >-
+          python -m pytest
+          tests/cirq
+          tests/integration/test_cirq_cqlib_runtime.py
+          tests/integration/test_cqlib_runtime.py
+          tests/integration/test_cqlib_tianyan_runtime.py
+          -m "not cloud and not slow"
