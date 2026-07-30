@@ -4,7 +4,7 @@
 
 `cqlib-adapter` 将 Qiskit、Cirq、PennyLane 和 CUDA-Q 电路接入新版 `cqlib`、`cqlib-tianyan` 与天衍量子计算云平台。
 
-项目提供共享的 cqlib 编译、QCIS、天衍设备/任务和 canonical result 基础设施，以及 Qiskit、Cirq、PennyLane、CUDA-Q 适配器。每套适配器包含框架转换、本地模拟器、mock 云闭环和显式启用的真机测试。完整测试说明见 `docs/testing.md`，CUDA-Q 说明见 `docs/cudaq-testing.md`。
+项目提供共享的 cqlib 编译、QCIS、天衍设备/任务和 canonical result 基础设施，以及 Qiskit、Cirq、PennyLane、CUDA-Q 适配器。每套适配器包含框架转换、本地模拟器、mock 云闭环和显式启用的真机测试。完整测试说明见 [docs/testing.md](docs/testing.md)，CUDA-Q 说明见 [docs/cudaq-testing.md](docs/cudaq-testing.md)。
 
 ## 运行要求
 
@@ -35,7 +35,7 @@ pip install "cqlib-adapter[all]"
 | Cirq | `python examples/cirq/01_conversion.py` | `python examples/cirq/04_grover_simulator.py` |
 | CUDA-Q（Linux/WSL2） | `python examples/cudaq/01_conversion.py` | `python examples/cudaq/04_grover_simulator.py` |
 
-`01_conversion.py` 展示框架线路到 cqlib/QCIS 的最小路径；`04_grover_simulator.py` 将框架参考结果与真实 cqlib 本地模拟结果比较，语义一致时输出 `PASS`。位序、statevector scaling、换基测量、mock 与真机示例见 `examples/README.md` 和各框架目录 README。真机 `03_tianyan_cloud.py` 与 `031_tianyan_topology.py` 需要明确授权和当前终端中的凭证。
+`01_conversion.py` 展示框架线路到 cqlib/QCIS 的最小路径；`04_grover_simulator.py` 将框架参考结果与真实 cqlib 本地模拟结果比较，语义一致时输出 `PASS`。位序、statevector scaling、换基测量、mock 与真机示例见 [examples/README.md](examples/README.md) 和各框架目录 README。真机 `03_tianyan_cloud.py` 与 `031_tianyan_topology.py` 需要明确授权和当前终端中的凭证。
 
 CUDA-Q 的正式路径直接读取 kernel/builder 的 Quake MLIR 并构造 `cqlib.Circuit`，不依赖 OpenQASM 2，也不在失败时回退 QASM。`cudaq_to_openqasm()` 只是用户主动调用的诊断导出工具。固定宽度多 `qalloc`、参数化 decorator、简单标量 builder、可静态求值循环、终端 `mx`/`my`/`mz` 均受支持；无显式测量时会补充全量 `mz`，动态线路结构会明确报错。
 
@@ -75,7 +75,7 @@ conda env create -f environment-dev.yml
 conda activate cqlib-adapter-dev
 ```
 
-`environment-dev.yml` 只创建 Python/质量工具环境。集成测试还需要同一父目录中新版 `cqlib` 与 `cqlib-tianyan` 的原生绑定：
+`environment-dev.yml` 创建 Python、可选框架和质量工具环境，但不会安装集成测试所需的原生 `cqlib` 与 `cqlib-tianyan` 绑定；请从同一父目录中的源码构建它们：
 
 ```text
 quantum-workspace/
@@ -145,7 +145,7 @@ python -m build
 python -m twine check dist/*
 ```
 
-提交或发布前删除 `.coverage`、缓存、日志、`build/`、`dist/` 和 `*.egg-info/`。这些可再生成文件已被 Git 忽略；完整发布检查见 `docs/release-checklist.md`。
+提交或发布前删除 `.coverage`、缓存、日志、`build/`、`dist/` 和 `*.egg-info/`。这些可再生成文件已被 Git 忽略；完整发布检查见 [docs/release-checklist.md](docs/release-checklist.md)。
 
 ## 测试原则
 
@@ -154,4 +154,4 @@ python -m twine check dist/*
 - 每个功能先写成功与边界测试。
 - 云平台行为通过 fake/mock 在无密钥 CI 中覆盖；真机测试独立 opt-in。
 
-详细兼容性与架构见 `docs/compatibility.md` 和 `docs/architecture.md`。
+详细兼容性与架构见 [docs/compatibility.md](docs/compatibility.md) 和 [docs/architecture.md](docs/architecture.md)。

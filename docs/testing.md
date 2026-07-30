@@ -12,9 +12,10 @@ The default tests are offline and deterministic. They cover packaging boundaries
 
 ## Required native Python packages
 
-`environment-dev.yml` creates the Python/tooling environment only. The integration
-suite must additionally load local Rust/PyO3 builds from sibling `cqlib` and
-`cqlib-tianyan` checkouts. Use the exact revisions recorded in `pyproject.toml`;
+`environment-dev.yml` creates the Python, optional-framework, and tooling environment,
+but does not install native bindings. The integration suite must additionally load local
+Rust/PyO3 builds from sibling `cqlib` and `cqlib-tianyan` checkouts. Use the exact
+revisions recorded in `pyproject.toml`;
 their installed Python package versions must both be `0.1.0`. If the sibling
 checkouts are missing, create them first, then run:
 

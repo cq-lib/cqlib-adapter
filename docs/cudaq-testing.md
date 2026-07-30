@@ -44,7 +44,7 @@ wsl.exe -d Ubuntu-24.04
 Then in the Ubuntu shell:
 
 ```bash
-source /home/fy/venvs/cqlib-adapter-cudaq/bin/activate
+source /path/to/cqlib-adapter-cudaq/bin/activate
 cd /path/to/cqlib-adapter
 python -c 'import cudaq, cqlib, cqlib_tianyan, cqlib_adapter; cudaq.set_target("qpp-cpu"); print(cudaq.__version__, cudaq.get_target()); print(cqlib_adapter.__file__)'
 ```

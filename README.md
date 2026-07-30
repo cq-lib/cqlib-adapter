@@ -81,7 +81,7 @@ conda env create -f environment-dev.yml
 conda activate cqlib-adapter-dev
 ```
 
-`environment-dev.yml` creates the Python and quality-tool environment only. Integration tests additionally require native `cqlib` and `cqlib-tianyan` bindings from sibling checkouts. Use the exact approved revisions recorded in [pyproject.toml](pyproject.toml), rather than either repository's default branch. The repositories should share a parent directory:
+`environment-dev.yml` creates the Python, optional-framework, and quality-tool environment, but does not install the native `cqlib` and `cqlib-tianyan` bindings required by integration tests. Build those bindings from sibling checkouts at the exact approved revisions recorded in [pyproject.toml](pyproject.toml), rather than either repository's default branch. The repositories should share a parent directory:
 
 ```text
 quantum-workspace/
