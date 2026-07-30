@@ -1,0 +1,22 @@
+name: cqlib-adapter-dev
+# This file creates the Python/tooling environment. Build the sibling cqlib and
+# cqlib-tianyan bindings, then install -e ".[dev]" as documented in README.md.
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip>=24
+  - maturin>=1.11,<2
+  - numpy>=2.1
+  - build>=1.2
+  - hypothesis>=6.100
+  - mypy>=1.15
+  - pre-commit>=4
+  - pytest>=8.4
+  - pytest-cov>=6
+  - ruff>=0.12
+  - twine>=6
+  - pip:
+      - qiskit>=2.5,<3
+      - cirq-core>=1.7,<2
+      - pennylane>=0.45,<0.46
