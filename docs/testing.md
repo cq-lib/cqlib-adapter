@@ -90,8 +90,8 @@ python -m pip check
 `coverage-windows.ini` intentionally omits only `cqlib_adapter.cudaq`: CUDA-Q is not
 available on Windows and is verified by the Linux/WSL coverage command. Test counts
 may grow as tests are added, so command exit status, explicit expected skips and
-assertions are authoritative. See the per-module documents under `docs/` for
-framework-specific commands.
+assertions are authoritative. Framework-specific offline and cloud examples are
+documented in `examples/README.md` and in each framework's example directory.
 
 CUDA-Q has an independent Linux workflow in `.github/workflows/cudaq.yml`.
 See `docs/cudaq-testing.md` for its module-by-module WSL commands.

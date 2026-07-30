@@ -14,4 +14,5 @@
 - 08_basis_measurement.py: deterministic X/Y-basis rotations through the real
   local cqlib compilation and simulation path.
 
-Run scripts from the repository root. See docs/qiskit-testing.md first.
+Run scripts from the repository root. See `docs/testing.md` for the shared test
+environment and credential-safety rules.
