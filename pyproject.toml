@@ -1,0 +1,168 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cqlib-adapter"
+dynamic = ["version"]
+description = "Framework adapters for compiling and running Qiskit, Cirq, PennyLane, and CUDA-Q programs with cqlib and Tianyan Quantum Cloud."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [
+    { name = "China Telecom Quantum Group Quantum Computing Team", email = "tianyan@chinatelecom.cn" },
+]
+keywords = [
+    "cqlib",
+    "tianyan",
+    "qiskit",
+    "cirq",
+    "pennylane",
+    "cuda-q",
+    "quantum-computing",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Quantum Computing",
+    "Topic :: Software Development :: Libraries",
+    "Typing :: Typed",
+]
+dependencies = [
+    "cqlib==0.1.0",
+    "cqlib-tianyan==0.1.0",
+]
+
+[project.optional-dependencies]
+qiskit = ["qiskit>=2.5,<3"]
+cirq = ["cirq-core>=1.7,<2"]
+pennylane = ["pennylane>=0.45,<0.46"]
+cudaq = ["cudaq>=0.15,<0.16; platform_system != 'Windows'"]
+all = [
+    "qiskit>=2.5,<3",
+    "cirq-core>=1.7,<2",
+    "pennylane>=0.45,<0.46",
+    "cudaq>=0.15,<0.16; platform_system != 'Windows'",
+]
+dev = [
+    "qiskit>=2.5,<3",
+    "cirq-core>=1.7,<2",
+    "pennylane>=0.45,<0.46",
+    "maturin>=1.11,<2",
+    "build>=1.2",
+    "hypothesis>=6.100",
+    "mypy>=1.15",
+    "pre-commit>=4",
+    "pytest>=8.4",
+    "pytest-cov>=6",
+    "ruff>=0.12",
+    "twine>=6",
+]
+
+[project.urls]
+Homepage = "https://qc.zdxlz.com/"
+Repository = "https://github.com/cq-lib/cqlib-adapter"
+Issues = "https://github.com/cq-lib/cqlib-adapter/issues"
+
+[tool.setuptools.dynamic]
+version = { attr = "cqlib_adapter._version.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cqlib_adapter*"]
+
+[tool.setuptools.package-data]
+cqlib_adapter = ["py.typed"]
+
+# The base dependencies are distributed internally as version 0.1.0 packages.
+# Keep the source revisions used by local development and CI here as a single,
+# reviewable record.  Documentation and workflows must use these exact commits.
+[tool.cqlib_adapter.native_dependencies.cqlib]
+repository = "https://github.com/cq-lib/cqlib.git"
+revision = "21f4814ce2cc7798b7102618d5a7617b47cd75b7"
+package_version = "0.1.0"
+
+[tool.cqlib_adapter.native_dependencies.cqlib_tianyan]
+repository = "https://github.com/cq-lib/cqlib-tianyan.git"
+revision = "ea3e88bb367e575f33ba1f9eca25aa283b77bd3c"
+package_version = "0.1.0"
+
+[tool.pytest.ini_options]
+minversion = "8.4"
+addopts = ["-ra", "--strict-config", "--strict-markers"]
+testpaths = ["tests"]
+markers = [
+    "unit: fast tests without network or installed quantum frameworks",
+    "integration: local integration tests across packages",
+    "cloud: tests requiring Tianyan credentials and network access",
+    "slow: tests intentionally excluded from the default fast suite",
+    "qiskit: tests requiring the qiskit extra",
+    "cirq: tests requiring the cirq extra",
+    "pennylane: tests requiring the pennylane extra",
+    "cudaq: tests requiring the cudaq extra and a supported platform",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["cqlib_adapter"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 80
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "PT", "RUF", "S"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["cqlib_adapter"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "S603"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+pretty = true
+packages = ["cqlib_adapter"]
+
+[[tool.mypy.overrides]]
+module = ["cqlib_adapter.qiskit.*"]
+ignore_missing_imports = true
+disallow_subclassing_any = false
+disable_error_code = ["import-untyped"]
+
+
+[[tool.mypy.overrides]]
+module = ["cqlib_adapter.cirq.*"]
+ignore_missing_imports = true
+disallow_subclassing_any = false
+disable_error_code = ["import-untyped"]
+[[tool.mypy.overrides]]
+module = ["cqlib_adapter.pennylane.*"]
+ignore_missing_imports = true
+disallow_subclassing_any = false
+disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = ["cqlib_adapter.cudaq.*"]
+ignore_missing_imports = true
+disallow_subclassing_any = false
+disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = ["cudaq", "cudaq.*"]
+ignore_missing_imports = true
