@@ -248,6 +248,51 @@ def test_measure_bits_is_bound_after_qcis_expands_it() -> None:
     ]
 
 
+def test_real_directives_do_not_require_direct_coupling_and_preserve_measurement_binding() -> None:
+    config = Device.line("directive-line", 3)
+    config.native_gates = _native_instructions()
+    normalized = NormalizedDevice.from_backend(_NativeBackend(config))
+    compiler = CircuitCompiler()
+
+    assert not normalized.supports_coupling(0, 2, either_direction=True)
+
+    barrier = Circuit(3)
+    barrier.barrier([0, 2])
+    barrier_artifact = compiler.compile(
+        TranslationBundle(
+            barrier,
+            _metadata(("q0", "q1", "q2"), (), 0),
+        ),
+        device=normalized,
+    )
+    assert barrier_artifact.qcis == "B Q0 Q2"
+
+    measured = Circuit(3)
+    measured.measure_bits([0, 2])
+    metadata = _metadata(
+        ("q0", "q1", "q2"),
+        (MeasurementSlot("q0", 0), MeasurementSlot("q2", 1)),
+        2,
+    )
+    measurement_artifact = compiler.compile(
+        TranslationBundle(measured, metadata),
+        device=normalized,
+    )
+
+    compiled_qubits = [
+        operation.qubits[0].index
+        for operation in measurement_artifact.circuit.operations
+        if _operation_name(operation) == "MEASURE"
+    ]
+    compiled_measurements = measurement_artifact.measurements
+    actual_bindings = [(item.physical_qubit, item.classical_bit) for item in compiled_measurements]
+    assert actual_bindings == [
+        (compiled_qubits[0], 0),
+        (compiled_qubits[1], 1),
+    ]
+    assert measurement_artifact.qcis.count("M Q") == 1
+
+
 def test_real_device_normalization_preserves_sparse_ids_invalid_qubits_and_instructions() -> None:
     topology = Topology([1, 8], [(1, 8, "CZ")])
     config = Device("sparse-native", [1, 8, 13], topology)

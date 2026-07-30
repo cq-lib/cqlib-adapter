@@ -27,6 +27,7 @@ from cqlib_adapter.common import (
     NormalizedDevice,
     RunOptions,
     TianyanConnector,
+    require_positive_finite,
 )
 
 from .converter import cirq_to_cqlib
@@ -57,10 +58,8 @@ class TianyanSampler(cirq.Sampler):
         self._normalized_device = device
         self._device = TianyanDevice(device, connector=connector)
         self._compiler = compiler or CircuitCompiler()
-        self._timeout = float(timeout)
-        self._poll_interval = float(poll_interval)
-        if self._timeout <= 0 or self._poll_interval <= 0:
-            raise ValueError("timeout and poll_interval must be positive")
+        self._timeout = require_positive_finite(timeout, name="timeout")
+        self._poll_interval = require_positive_finite(poll_interval, name="poll_interval")
         self._calibration = CalibrationMode(str(calibration).strip().lower())
         self._require_available = bool(require_available)
         self._compilation_options = CompilationOptions(

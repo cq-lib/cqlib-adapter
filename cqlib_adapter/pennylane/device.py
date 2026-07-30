@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pennylane.devices import Device, ExecutionConfig
@@ -31,6 +31,7 @@ from cqlib_adapter.common import (
     NormalizedDevice,
     RunOptions,
     TianyanConnector,
+    require_positive_finite,
 )
 
 from .converter import SUPPORTED_OPERATION_NAMES, pennylane_to_cqlib, supports_measurement
@@ -48,6 +49,52 @@ def _sample_measurement(measurement: Any) -> bool:
 def _analytic_measurement(measurement: Any) -> bool:
     del measurement
     return False
+
+
+_FACTORY_DEVICE_OPTIONS = frozenset(
+    {
+        "compiler",
+        "timeout",
+        "poll_interval",
+        "calibration",
+        "require_available",
+        "compilation_mode",
+        "initial_layout",
+        "resource_policy",
+        "seed",
+    }
+)
+
+
+def _validate_factory_device_options(device_options: Mapping[str, Any]) -> None:
+    """Reject misspelled Device options before authenticating with Tianyan."""
+
+    unsupported = sorted(set(device_options).difference(_FACTORY_DEVICE_OPTIONS))
+    if unsupported:
+        raise TypeError(f"unsupported TianyanDevice factory options: {unsupported}")
+
+
+def _split_authentication_options(
+    explicit: Mapping[str, Any] | None,
+    device_options: dict[str, Any],
+    *,
+    names: frozenset[str],
+    option_name: str,
+) -> dict[str, Any]:
+    """Keep connector options separate while accepting legacy keyword forms."""
+
+    if explicit is not None and not isinstance(explicit, Mapping):
+        raise TypeError(f"{option_name} must be a mapping")
+    authentication = dict(explicit or {})
+    legacy = {name: device_options.pop(name) for name in names if name in device_options}
+    duplicate = sorted(set(authentication).intersection(legacy))
+    if duplicate:
+        raise TypeError(f"{option_name} duplicates legacy authentication options: {duplicate}")
+    authentication.update(legacy)
+    unsupported = sorted(repr(name) for name in set(authentication).difference(names))
+    if unsupported:
+        raise TypeError(f"{option_name} contains unsupported authentication options: {unsupported}")
+    return authentication
 
 
 class TianyanDevice(Device):
@@ -87,10 +134,8 @@ class TianyanDevice(Device):
         self._connector = connector
         self._device = device
         self._compiler = compiler or CircuitCompiler()
-        self._timeout = float(timeout)
-        self._poll_interval = float(poll_interval)
-        if self._timeout <= 0 or self._poll_interval <= 0:
-            raise ValueError("timeout and poll_interval must be positive")
+        self._timeout = require_positive_finite(timeout, name="timeout")
+        self._poll_interval = require_positive_finite(poll_interval, name="poll_interval")
         self._calibration = CalibrationMode(str(calibration).strip().lower())
         self._require_available = bool(require_available)
         self._compilation_options = CompilationOptions(
@@ -164,16 +209,34 @@ class TianyanDevice(Device):
         wires: int | Sequence[Any] | None = None,
         shots: int | None = None,
         save_credentials: bool = False,
-        **login_options: Any,
+        login_options: Mapping[str, Any] | None = None,
+        **device_options: Any,
     ) -> TianyanDevice:
         """Authenticate with cqlib-tianyan and create a PennyLane Device."""
 
+        authentication = _split_authentication_options(
+            login_options,
+            device_options,
+            names=frozenset({"domain", "auto_refresh", "credentials_path", "save_credentials"}),
+            option_name="login_options",
+        )
+        _validate_factory_device_options(device_options)
+        if "save_credentials" in authentication:
+            raise TypeError(
+                "save_credentials must be passed as an explicit TianyanDevice.login argument"
+            )
         connector = TianyanConnector.login(
             api_key,
             save_credentials=save_credentials,
-            **login_options,
+            **authentication,
         )
-        return cls.from_connector(connector, device_name, wires=wires, shots=shots)
+        return cls.from_connector(
+            connector,
+            device_name,
+            wires=wires,
+            shots=shots,
+            **device_options,
+        )
 
     @classmethod
     def from_credentials(
@@ -182,12 +245,26 @@ class TianyanDevice(Device):
         *,
         wires: int | Sequence[Any] | None = None,
         shots: int | None = None,
-        **credential_options: Any,
+        credential_options: Mapping[str, Any] | None = None,
+        **device_options: Any,
     ) -> TianyanDevice:
         """Load saved cqlib-tianyan credentials and create a Device."""
 
-        connector = TianyanConnector.from_credentials(**credential_options)
-        return cls.from_connector(connector, device_name, wires=wires, shots=shots)
+        authentication = _split_authentication_options(
+            credential_options,
+            device_options,
+            names=frozenset({"domain", "auto_refresh", "credentials_path", "save_credentials"}),
+            option_name="credential_options",
+        )
+        _validate_factory_device_options(device_options)
+        connector = TianyanConnector.from_credentials(**authentication)
+        return cls.from_connector(
+            connector,
+            device_name,
+            wires=wires,
+            shots=shots,
+            **device_options,
+        )
 
     def preprocess_transforms(
         self,

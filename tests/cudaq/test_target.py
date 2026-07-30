@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from cqlib_adapter.common import (
     Coupling,
     DeviceStatus,
@@ -19,6 +21,8 @@ from cqlib_adapter.common import (
     NormalizedDevice,
 )
 from cqlib_adapter.cudaq import TianyanTarget, target_from_device
+
+pytestmark = pytest.mark.cudaq
 
 
 def device() -> NormalizedDevice:

@@ -97,8 +97,9 @@ memory 长度为 100；概率可从 `result.data()['probabilities']` 读取。
 ```powershell
 python -m pytest tests/qiskit -vv
 python -m pytest tests/integration/test_cqlib_runtime.py tests/integration/test_cqlib_tianyan_runtime.py tests/qiskit -vv
-python -m pytest -q
-python -m pytest --cov=cqlib_adapter --cov-report=term-missing -q
+# 完整 Windows 回归需要先按 README 安装 .[dev]；CUDA-Q 在 WSL/Linux 单独验证。
+python -m pytest -m "not cloud and not cudaq" -q
+python -m pytest --cov=cqlib_adapter --cov-report=term-missing -m "not cloud and not cudaq" -q
 python -m ruff check .
 python -m ruff format --check .
 python -m mypy cqlib_adapter

@@ -269,6 +269,62 @@ def test_job_wraps_native_timeout() -> None:
         AdapterJob([handle], [_artifact(device)]).wait(timeout=1)
 
 
+@pytest.mark.parametrize(
+    ("keyword", "value", "error"),
+    [
+        ("default_timeout", float("nan"), ValueError),
+        ("default_poll_interval", float("inf"), ValueError),
+        ("default_timeout", float("-inf"), ValueError),
+        ("default_poll_interval", float("-inf"), ValueError),
+        ("default_timeout", True, TypeError),
+        ("default_poll_interval", "5", TypeError),
+    ],
+)
+def test_job_rejects_invalid_default_wait_values(
+    keyword: str,
+    value: object,
+    error: type[Exception],
+) -> None:
+    device = NormalizedDevice.from_backend(FakeBackend())
+    handle = FakeHandle(["a"], [], shots=10)
+    with pytest.raises(error):
+        AdapterJob([handle], [_artifact(device)], **{keyword: value})  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("keyword", "value", "error"),
+    [
+        ("timeout", float("nan"), ValueError),
+        ("poll_interval", float("inf"), ValueError),
+        ("timeout", float("-inf"), ValueError),
+        ("poll_interval", float("-inf"), ValueError),
+        ("timeout", True, TypeError),
+        ("poll_interval", "5", TypeError),
+    ],
+)
+def test_job_rejects_invalid_wait_overrides(
+    keyword: str,
+    value: object,
+    error: type[Exception],
+) -> None:
+    device = NormalizedDevice.from_backend(FakeBackend())
+    handle = FakeHandle(["a"], [], shots=10)
+    job = AdapterJob([handle], [_artifact(device)])
+    with pytest.raises(error):
+        job.wait(**{keyword: value})  # type: ignore[arg-type]
+
+
+def test_job_validates_wait_overrides_after_result_is_cached() -> None:
+    device = NormalizedDevice.from_backend(FakeBackend())
+    result = FakeExecutionResult("a", 10, (0,), {"0": 10})
+    handle = FakeHandle(["a"], [result], shots=10)
+    job = AdapterJob([handle], [_artifact(device)])
+    assert job.wait()[0].task_id == "a"
+
+    with pytest.raises(ValueError, match="timeout"):
+        job.wait(timeout=float("nan"))
+
+
 def test_job_rejects_inconsistent_handle_shots() -> None:
     device = NormalizedDevice.from_backend(FakeBackend())
     first = FakeHandle(["a"], [], shots=10)

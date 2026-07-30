@@ -120,6 +120,30 @@ def test_run_options_reject_invalid_values(
         RunOptions(**kwargs)  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "error"),
+    [
+        ("timeout", float("nan"), ValueError),
+        ("timeout", float("inf"), ValueError),
+        ("timeout", float("-inf"), ValueError),
+        ("timeout", True, TypeError),
+        ("timeout", "5", TypeError),
+        ("poll_interval", float("nan"), ValueError),
+        ("poll_interval", float("inf"), ValueError),
+        ("poll_interval", float("-inf"), ValueError),
+        ("poll_interval", True, TypeError),
+        ("poll_interval", "5", TypeError),
+    ],
+)
+def test_run_options_reject_non_finite_or_non_numeric_wait_values(
+    field: str,
+    value: object,
+    error: type[Exception],
+) -> None:
+    with pytest.raises(error, match=field):
+        RunOptions("d", **{field: value})  # type: ignore[arg-type]
+
+
 def test_device_normalization_exposes_topology_and_state() -> None:
     config = FakeDeviceConfig(
         size=3,

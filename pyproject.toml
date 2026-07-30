@@ -52,6 +52,9 @@ all = [
     "cudaq>=0.15,<0.16; platform_system != 'Windows'",
 ]
 dev = [
+    "qiskit>=2.5,<3",
+    "cirq-core>=1.7,<2",
+    "pennylane>=0.45,<0.46",
     "maturin>=1.11,<2",
     "build>=1.2",
     "hypothesis>=6.100",
@@ -77,6 +80,19 @@ include = ["cqlib_adapter*"]
 
 [tool.setuptools.package-data]
 cqlib_adapter = ["py.typed"]
+
+# The base dependencies are distributed internally as version 0.1.0 packages.
+# Keep the source revisions used by local development and CI here as a single,
+# reviewable record.  Documentation and workflows must use these exact commits.
+[tool.cqlib_adapter.native_dependencies.cqlib]
+repository = "https://github.com/cq-lib/cqlib.git"
+revision = "21f4814ce2cc7798b7102618d5a7617b47cd75b7"
+package_version = "0.1.0"
+
+[tool.cqlib_adapter.native_dependencies.cqlib_tianyan]
+repository = "https://github.com/cq-lib/cqlib-tianyan.git"
+revision = "ea3e88bb367e575f33ba1f9eca25aa283b77bd3c"
+package_version = "0.1.0"
 
 [tool.pytest.ini_options]
 minversion = "8.4"

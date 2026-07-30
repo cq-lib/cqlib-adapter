@@ -12,7 +12,24 @@ The default tests are offline and deterministic. They cover packaging boundaries
 
 ## Required native Python packages
 
-The integration suite must load the local Rust/PyO3 builds:
+`environment-dev.yml` creates the Python/tooling environment only. The integration
+suite must additionally load local Rust/PyO3 builds from sibling `cqlib` and
+`cqlib-tianyan` checkouts. Use the exact revisions recorded in `pyproject.toml`;
+their installed Python package versions must both be `0.1.0`. If the sibling
+checkouts are missing, create them first, then run:
+
+```bash
+git clone https://github.com/cq-lib/cqlib.git ../cqlib
+git -C ../cqlib checkout 21f4814ce2cc7798b7102618d5a7617b47cd75b7
+git clone https://github.com/cq-lib/cqlib-tianyan.git ../cqlib-tianyan
+git -C ../cqlib-tianyan checkout ea3e88bb367e575f33ba1f9eca25aa283b77bd3c
+git -C ../cqlib status --short
+git -C ../cqlib-tianyan status --short
+```
+
+Both status commands must be empty before building the native bindings.
+
+Build the approved revisions with:
 
 ```bash
 cd ../cqlib/crates/binding-python
@@ -28,6 +45,16 @@ python -c "from importlib.metadata import version; import cqlib._native, cqlib_t
 ```
 
 Both versions must be `0.1.0`; the native files must be `.pyd` on Windows or a Python extension `.so` on Linux/macOS.
+
+Install the adapter test surface after the native packages are available:
+
+```bash
+# Windows/macOS: Qiskit, Cirq and PennyLane plus quality tools.
+python -m pip install -e ".[dev]"
+
+# Linux/WSL: add CUDA-Q for the complete four-framework suite.
+python -m pip install -e ".[dev,cudaq]"
+```
 
 ## Shared-core coverage
 
@@ -46,8 +73,13 @@ Fakes remain only for failure injection and cloud transport determinism. They mi
 ## Commands
 
 ```bash
+# Windows: CUDA-Q is verified separately in WSL/Linux.
+python -m pytest -m "not cloud and not cudaq"
+python -m pytest tests/integration -m "not cudaq"
+python -m pytest --cov=cqlib_adapter --cov-config=coverage-windows.ini --cov-report=term-missing -m "not cloud and not cudaq"
+
+# Linux/WSL after installing .[dev,cudaq].
 python -m pytest -m "not cloud"
-python -m pytest tests/integration
 python -m pytest --cov=cqlib_adapter --cov-report=term-missing -m "not cloud"
 python -m ruff check .
 python -m ruff format --check .
@@ -55,7 +87,11 @@ python -m mypy cqlib_adapter
 python -m pip check
 ```
 
-The release-candidate checkpoint passes 275 Windows tests with CUDA-Q and live-cloud tests skipped. The independent Linux/WSL CUDA-Q suite passes 40 focused tests, while the common plus CUDA-Q coverage selection passes 128 tests. Counts may grow as tests are added; command exit status and assertions are authoritative. See the per-module documents under `docs/` for framework-specific commands.
+`coverage-windows.ini` intentionally omits only `cqlib_adapter.cudaq`: CUDA-Q is not
+available on Windows and is verified by the Linux/WSL coverage command. Test counts
+may grow as tests are added, so command exit status, explicit expected skips and
+assertions are authoritative. See the per-module documents under `docs/` for
+framework-specific commands.
 
 CUDA-Q has an independent Linux workflow in `.github/workflows/cudaq.yml`.
 See `docs/cudaq-testing.md` for its module-by-module WSL commands.

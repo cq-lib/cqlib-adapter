@@ -23,8 +23,8 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install quality tools and typed framework surface
-        run: python -m pip install --upgrade pip pytest ruff mypy "qiskit>=2.5,<3"
+      - name: Install quality tools
+        run: python -m pip install --upgrade pip pytest ruff mypy
       - name: Install project without unpublished runtime dependencies
         run: python -m pip install --no-deps -e .
       - name: Ruff lint
@@ -34,7 +34,11 @@ jobs:
       - name: Type check
         run: python -m mypy cqlib_adapter
       - name: Unit tests
-        run: python -m pytest -m "not cloud and not slow"
+        run: >-
+          python -m pytest tests/common tests/test_adapter_registry.py
+          tests/test_framework_namespaces.py tests/test_import_boundaries.py
+          tests/test_optional_dependencies.py tests/test_package_metadata.py
+          tests/test_project_structure.py -m "not cloud and not slow"
 
   test:
     strategy:
@@ -55,7 +59,47 @@ jobs:
       - name: Install project without unpublished runtime dependencies
         run: python -m pip install --no-deps -e .
       - name: Run offline tests
-        run: python -m pytest -m "not cloud and not slow"
+        run: >-
+          python -m pytest tests/common tests/test_adapter_registry.py
+          tests/test_framework_namespaces.py tests/test_import_boundaries.py
+          tests/test_optional_dependencies.py tests/test_package_metadata.py
+          tests/test_project_structure.py -m "not cloud and not slow"
+
+  windows-dev:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: cq-lib/cqlib
+          ref: 21f4814ce2cc7798b7102618d5a7617b47cd75b7
+          path: .ci-deps/cqlib
+      - uses: actions/checkout@v4
+        with:
+          repository: cq-lib/cqlib-tianyan
+          ref: ea3e88bb367e575f33ba1f9eca25aa283b77bd3c
+          path: .ci-deps/cqlib-tianyan
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install native build tool
+        run: python -m pip install --upgrade pip maturin
+      - name: Build and install cqlib Python extension
+        working-directory: .ci-deps/cqlib/crates/binding-python
+        run: python -m pip install .
+      - name: Build and install cqlib-tianyan Python extension
+        working-directory: .ci-deps/cqlib-tianyan/crates/binding-python
+        run: python -m pip install .
+      - name: Install documented Windows development surface
+        run: python -m pip install -e ".[dev]"
+      - name: Run documented Windows default coverage command
+        run: >-
+          python -m pytest --cov=cqlib_adapter
+          --cov-config=coverage-windows.ini --cov-report=term-missing
+          -m "not cloud and not cudaq"
 
   build:
     runs-on: ubuntu-latest
@@ -71,6 +115,25 @@ jobs:
           python -m pip install --upgrade pip build twine
           python -m build
           python -m twine check dist/*
+      - name: Verify minimal source distribution boundary
+        run: |
+          tar -tzf dist/*.tar.gz > sdist-contents.txt
+          grep -q '/pyproject.toml$' sdist-contents.txt
+          grep -q '/cqlib_adapter/__init__.py$' sdist-contents.txt
+          grep -q '/cqlib_adapter/py.typed$' sdist-contents.txt
+          grep -q '/LICENSE$' sdist-contents.txt
+          ! grep -Eq '/(docs|examples)/' sdist-contents.txt
+          ! grep -Eq '/(\.pytest_cache|\.mypy_cache|\.ruff_cache|build|dist)/' sdist-contents.txt
+      - name: Install and smoke-test the minimal source distribution
+        run: |
+          mkdir sdist-smoke
+          tar -xzf dist/*.tar.gz -C sdist-smoke
+          source_dir="$(find sdist-smoke -mindepth 1 -maxdepth 1 -type d -name 'cqlib_adapter-*' -print -quit)"
+          test -n "$source_dir"
+          python -m venv sdist-venv
+          sdist-venv/bin/python -m pip install --upgrade pip
+          sdist-venv/bin/python -m pip install --no-deps "$source_dir"
+          sdist-venv/bin/python -c "import cqlib_adapter; print(cqlib_adapter.__version__)"
       - name: Smoke-test wheel without unpublished runtime dependencies
         run: |
           python -m pip install --no-deps dist/*.whl
@@ -93,10 +156,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: cq-lib/cqlib
+          ref: 21f4814ce2cc7798b7102618d5a7617b47cd75b7
           path: .ci-deps/cqlib
       - uses: actions/checkout@v4
         with:
           repository: cq-lib/cqlib-tianyan
+          ref: ea3e88bb367e575f33ba1f9eca25aa283b77bd3c
           path: .ci-deps/cqlib-tianyan
       - uses: actions/setup-python@v5
         with:
@@ -133,10 +198,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: cq-lib/cqlib
+          ref: 21f4814ce2cc7798b7102618d5a7617b47cd75b7
           path: .ci-deps/cqlib
       - uses: actions/checkout@v4
         with:
           repository: cq-lib/cqlib-tianyan
+          ref: ea3e88bb367e575f33ba1f9eca25aa283b77bd3c
           path: .ci-deps/cqlib-tianyan
       - uses: actions/setup-python@v5
         with:
@@ -174,10 +241,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: cq-lib/cqlib
+          ref: 21f4814ce2cc7798b7102618d5a7617b47cd75b7
           path: .ci-deps/cqlib
       - uses: actions/checkout@v4
         with:
           repository: cq-lib/cqlib-tianyan
+          ref: ea3e88bb367e575f33ba1f9eca25aa283b77bd3c
           path: .ci-deps/cqlib-tianyan
       - uses: actions/setup-python@v5
         with:

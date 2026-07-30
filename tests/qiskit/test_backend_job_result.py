@@ -44,6 +44,30 @@ def test_backend_exposes_qiskit_target_options_and_device_status() -> None:
     assert backend.num_qubits == 2
     assert backend.options.shots == 1024
     assert backend.max_circuits == 50
+
+
+@pytest.mark.parametrize(
+    ("keyword", "value", "error"),
+    [
+        ("timeout", float("nan"), ValueError),
+        ("poll_interval", float("inf"), ValueError),
+        ("timeout", float("-inf"), ValueError),
+        ("poll_interval", float("-inf"), ValueError),
+        ("timeout", True, TypeError),
+        ("poll_interval", "5", TypeError),
+    ],
+)
+def test_backend_rejects_invalid_wait_configuration_before_submission(
+    keyword: str,
+    value: object,
+    error: type[Exception],
+) -> None:
+    backend, cloud = make_qiskit_backend([], size=2)
+
+    with pytest.raises(error):
+        backend.run(bell_circuit(), **{keyword: value})
+
+    assert cloud.calls == []
     assert backend.is_available()
     assert backend.status().operational
     assert backend.status().status_msg == "running"

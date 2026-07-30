@@ -26,6 +26,7 @@ from .errors import (
     AdapterResultError,
     ErrorContext,
 )
+from .options import require_positive_finite
 from .result import CanonicalResult, ResultConverter
 from .typing import ExecutionResultLike, TaskHandleLike
 
@@ -71,14 +72,15 @@ class AdapterJob:
             raise ValueError("task ID count must match compilation artifact count")
         if len(set(task_ids)) != len(task_ids):
             raise ValueError("task IDs must be unique")
-        if default_timeout <= 0 or default_poll_interval <= 0:
-            raise ValueError("default wait values must be positive")
         self._handles = tuple(handles)
         self._artifacts = dict(zip(task_ids, artifacts, strict=True))
         self._task_ids = task_ids
         self._converter = converter or ResultConverter()
-        self._default_timeout = default_timeout
-        self._default_poll_interval = default_poll_interval
+        self._default_timeout = require_positive_finite(default_timeout, name="default_timeout")
+        self._default_poll_interval = require_positive_finite(
+            default_poll_interval,
+            name="default_poll_interval",
+        )
         self._cached: tuple[CanonicalResult, ...] | None = None
 
     @property
@@ -128,14 +130,12 @@ class AdapterJob:
         timeout: float | None = None,
         poll_interval: float | None = None,
     ) -> tuple[CanonicalResult, ...]:
-        if self._cached is not None:
-            return self._cached
         effective_timeout = self._default_timeout if timeout is None else timeout
         effective_poll = self._default_poll_interval if poll_interval is None else poll_interval
-        if effective_timeout <= 0:
-            raise ValueError("timeout must be positive")
-        if effective_poll <= 0:
-            raise ValueError("poll_interval must be positive")
+        effective_timeout = require_positive_finite(effective_timeout, name="timeout")
+        effective_poll = require_positive_finite(effective_poll, name="poll_interval")
+        if self._cached is not None:
+            return self._cached
         started = time.monotonic()
         raw: list[ExecutionResultLike] = []
         try:

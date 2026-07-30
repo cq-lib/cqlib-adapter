@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
@@ -32,6 +33,17 @@ class CalibrationMode(StrEnum):
     AUTO = "auto"
     ENABLED = "enabled"
     DISABLED = "disabled"
+
+
+def require_positive_finite(value: object, *, name: str) -> float:
+    """Return a finite positive numeric value or raise a stable input error."""
+
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise TypeError(f"{name} must be a finite positive number")
+    normalized = float(value)
+    if not math.isfinite(normalized) or normalized <= 0:
+        raise ValueError(f"{name} must be a finite positive number")
+    return normalized
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,10 +88,12 @@ class RunOptions:
         object.__setattr__(self, "device_name", self.device_name.strip())
         if isinstance(self.shots, bool) or not isinstance(self.shots, int) or self.shots <= 0:
             raise ValueError("shots must be a positive integer")
-        if self.timeout <= 0:
-            raise ValueError("timeout must be positive")
-        if self.poll_interval <= 0:
-            raise ValueError("poll_interval must be positive")
+        object.__setattr__(self, "timeout", require_positive_finite(self.timeout, name="timeout"))
+        object.__setattr__(
+            self,
+            "poll_interval",
+            require_positive_finite(self.poll_interval, name="poll_interval"),
+        )
 
 
 __all__ = [
@@ -87,4 +101,5 @@ __all__ = [
     "CompilationMode",
     "CompilationOptions",
     "RunOptions",
+    "require_positive_finite",
 ]

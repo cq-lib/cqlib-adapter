@@ -61,8 +61,8 @@ conda activate cqlib-adapter-dev
 # Run the remaining commands from the cqlib-adapter repository root.
 python -c "import cqlib._native as n, cqlib_tianyan._cqlib_tianyan as t; print(n.__file__); print(t.__file__)"
 python -m pip check
-python -m pytest -m "not cloud" -q
-python -m pytest --cov=cqlib_adapter --cov-report=term-missing -q
+python -m pytest -m "not cloud and not cudaq" -q
+python -m pytest --cov=cqlib_adapter --cov-report=term-missing -m "not cloud and not cudaq" -q
 python -m ruff check .
 python -m ruff format --check .
 python -m mypy cqlib_adapter

@@ -12,8 +12,11 @@ Run this checklist from a clean checkout before publishing.
    `docs/cudaq-testing.md` with `qpp-cpu`.
 5. Build the sdist and wheel and run `python -m twine check dist/*`.
 6. Inspect both archives and confirm they contain package sources, typing
-   metadata, documentation, tests, examples, license and no generated or
-   credential files.
+   metadata and the license, with no generated or credential files. The sdist
+   is intentionally a minimal build source archive; documentation, examples
+   and the full test suite remain in the Git checkout and are verified there.
+   CI must also unpack the sdist, install it with `--no-deps` in a clean virtual
+   environment and import `cqlib_adapter` before the wheel smoke test.
 7. Remove `.coverage`, caches, logs, `build/`, `dist/` and `*.egg-info/` before
    staging. These artifacts are reproducible and ignored by Git.
 

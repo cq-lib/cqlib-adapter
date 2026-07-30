@@ -43,6 +43,20 @@ def _bundle(circuit: FakeCircuit) -> TranslationBundle[FakeCircuit]:
     return TranslationBundle(circuit, metadata)
 
 
+def _three_qubit_bundle(
+    circuit: FakeCircuit,
+    measurements: MeasurementMetadata,
+) -> TranslationBundle[FakeCircuit]:
+    return TranslationBundle(
+        circuit,
+        TranslationMetadata(
+            framework="qiskit",
+            qubits=("q0", "q1", "q2"),
+            measurements=measurements,
+        ),
+    )
+
+
 def _device(config: FakeDeviceConfig | None = None) -> NormalizedDevice:
     return NormalizedDevice.from_backend(FakeBackend(config=config))
 
@@ -97,14 +111,46 @@ def test_compile_rejects_gate_outside_target_basis() -> None:
         )
 
 
-def test_compile_rejects_unsupported_coupling() -> None:
-    compiled = FakeCircuit((("CZ", (0, 2)), ("measure_bit", (0,)), ("measure_bit", (2,))))
-    config = FakeDeviceConfig(edges=((0, 1), (1, 0)))
+@pytest.mark.parametrize("gate", ["CZ", "CX"])
+def test_compile_rejects_unsupported_coupling_for_two_qubit_gates(gate: str) -> None:
+    compiled = FakeCircuit(((gate, (0, 2)), ("measure_bit", (0,)), ("measure_bit", (2,))))
+    config = FakeDeviceConfig(gates=("X90", gate), edges=((0, 1), (1, 0)))
     with pytest.raises(AdapterCompileError, match="unsupported coupling"):
         CircuitCompiler(FakeRuntime(compiled)).compile(
             _bundle(compiled),
             device=_device(config),
         )
+
+
+def test_compile_does_not_require_coupling_for_multiqubit_barrier() -> None:
+    compiled = FakeCircuit((("BARRIER", (0, 2)),))
+    config = FakeDeviceConfig(edges=((0, 1), (1, 0)))
+
+    artifact = CircuitCompiler(FakeRuntime(compiled)).compile(
+        _three_qubit_bundle(compiled, MeasurementMetadata.none()),
+        device=_device(config),
+    )
+
+    assert artifact.qcis == "BARRIER Q0 Q2"
+
+
+def test_compile_does_not_require_coupling_for_multiqubit_measurement() -> None:
+    compiled = FakeCircuit((("measure_bits", (0, 2)),))
+    config = FakeDeviceConfig(edges=((0, 1), (1, 0)))
+    measurements = MeasurementMetadata(
+        (MeasurementSlot("q0", 0), MeasurementSlot("q2", 1)),
+        num_classical_bits=2,
+    )
+
+    artifact = CircuitCompiler(FakeRuntime(compiled)).compile(
+        _three_qubit_bundle(compiled, measurements),
+        device=_device(config),
+    )
+
+    assert [(item.physical_qubit, item.classical_bit) for item in artifact.measurements] == [
+        (0, 0),
+        (2, 1),
+    ]
 
 
 def test_compile_accepts_coupling_in_either_direction_like_cqlib() -> None:
@@ -115,6 +161,30 @@ def test_compile_accepts_coupling_in_either_direction_like_cqlib() -> None:
         device=_device(config),
     )
     assert artifact.measurements[0].physical_qubit == 1
+
+
+def test_compile_requires_directed_coupling_for_control_target_gate() -> None:
+    compiled = FakeCircuit((("CX", (1, 0)), ("measure_bit", (1,)), ("measure_bit", (0,))))
+    config = FakeDeviceConfig(gates=("X90", "CX"), edges=((0, 1),))
+
+    with pytest.raises(AdapterCompileError, match=r"CX uses unsupported coupling \(1, 0\)"):
+        CircuitCompiler(FakeRuntime(compiled)).compile(
+            _bundle(compiled),
+            device=_device(config),
+        )
+
+
+def test_compile_rejects_unclassified_two_qubit_operation() -> None:
+    compiled = FakeCircuit(
+        (("UNCLASSIFIED2", (0, 1)), ("measure_bit", (0,)), ("measure_bit", (1,)))
+    )
+    config = FakeDeviceConfig(gates=("X90", "UNCLASSIFIED2"))
+
+    with pytest.raises(AdapterCompileError, match="unclassified two-qubit operation"):
+        CircuitCompiler(FakeRuntime(compiled)).compile(
+            _bundle(compiled),
+            device=_device(config),
+        )
 
 
 def test_compile_rejects_operation_on_invalid_qubit() -> None:

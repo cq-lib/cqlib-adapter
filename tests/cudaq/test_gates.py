@@ -19,6 +19,8 @@ from cqlib_adapter.cudaq.gates import (
     cqlib_gate_for_openqasm,
 )
 
+pytestmark = pytest.mark.cudaq
+
 
 @pytest.mark.parametrize(
     ("source", "expected"),

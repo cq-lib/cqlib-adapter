@@ -115,6 +115,33 @@ class CircuitCompiler:
     """Compile translated cqlib circuits into validated QCIS executables."""
 
     _DIRECTIVES = frozenset({"MEASURE", "BARRIER", "RESET", "DELAY", "CLASSICAL_CONTROL"})
+    # A topology is a directed graph.  Only operations with an actual
+    # two-qubit interaction require an edge, and a control/target gate cannot
+    # use the reverse edge.  The circuit IR does not expose instruction arity
+    # metadata independently of the operation, so this explicit classification
+    # is deliberately fail-closed for unknown two-qubit instructions.
+    _SYMMETRIC_TWO_QUBIT_GATES = frozenset(
+        {
+            "CZ",
+            "SWAP",
+            "ISWAP",
+            "RXX",
+            "RYY",
+            "RZZ",
+            "FSIM",
+        }
+    )
+    _DIRECTED_TWO_QUBIT_GATES = frozenset(
+        {
+            "CX",
+            "CNOT",
+            "CY",
+            "CRX",
+            "CRY",
+            "CRZ",
+            "RZX",
+        }
+    )
 
     def __init__(self, runtime: CqlibRuntime | None = None) -> None:
         self._runtime = runtime or DefaultCqlibRuntime()
@@ -222,18 +249,29 @@ class CircuitCompiler:
     ) -> None:
         invalid = set(device.invalid_qubits)
         for operation in circuit.operations:
+            name = _instruction_name(operation)
             qubits = tuple(qubit_index(qubit) for qubit in operation.qubits)
             if invalid.intersection(qubits):
+                raise AdapterCompileError(f"compiled operation {name} uses invalid qubit")
+            if name in self._DIRECTIVES:
+                continue
+            if len(qubits) != 2:
+                continue
+            if name in self._SYMMETRIC_TWO_QUBIT_GATES:
+                either_direction = True
+            elif name in self._DIRECTED_TWO_QUBIT_GATES:
+                either_direction = False
+            else:
                 raise AdapterCompileError(
-                    f"compiled operation {_instruction_name(operation)} uses invalid qubit"
+                    f"cannot validate topology for unclassified two-qubit operation {name!r}"
                 )
-            if len(qubits) == 2 and not device.supports_coupling(
+            if not device.supports_coupling(
                 qubits[0],
                 qubits[1],
-                either_direction=True,
+                either_direction=either_direction,
             ):
                 raise AdapterCompileError(
-                    f"compiled two-qubit operation uses unsupported coupling {qubits}"
+                    f"compiled two-qubit operation {name} uses unsupported coupling {qubits}"
                 )
 
     def _bind_measurements(

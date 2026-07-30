@@ -112,6 +112,26 @@ def test_device_information_and_availability_are_exposed() -> None:
     assert executor.target.status == "calibration"
 
 
+@pytest.mark.parametrize(
+    ("keyword", "value", "error"),
+    [
+        ("timeout", float("nan"), ValueError),
+        ("poll_interval", float("inf"), ValueError),
+        ("timeout", float("-inf"), ValueError),
+        ("poll_interval", float("-inf"), ValueError),
+        ("timeout", True, TypeError),
+        ("poll_interval", "5", TypeError),
+    ],
+)
+def test_executor_rejects_invalid_wait_configuration(
+    keyword: str,
+    value: object,
+    error: type[Exception],
+) -> None:
+    with pytest.raises(error):
+        make_cudaq_executor([], size=1, **{keyword: value})
+
+
 def test_unavailable_device_and_invalid_shots_fail_before_submission() -> None:
     executor, cloud = make_cudaq_executor(
         [ResultSpec({"0": 1}, (0,))],

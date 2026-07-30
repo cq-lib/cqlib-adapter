@@ -35,7 +35,13 @@ from .errors import (
     ErrorContext,
 )
 from .job import AdapterJob, JobSnapshot, JobState
-from .options import CalibrationMode, CompilationMode, CompilationOptions, RunOptions
+from .options import (
+    CalibrationMode,
+    CompilationMode,
+    CompilationOptions,
+    RunOptions,
+    require_positive_finite,
+)
 from .platform import TianyanConnector
 from .result import CanonicalResult, ResultConverter
 
@@ -74,4 +80,5 @@ __all__ = [
     "TranslationBundle",
     "TranslationMetadata",
     "qubit_index",
+    "require_positive_finite",
 ]

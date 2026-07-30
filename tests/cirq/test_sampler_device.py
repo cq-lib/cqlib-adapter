@@ -84,6 +84,26 @@ def test_sampler_availability_refreshes_cloud_state() -> None:
     assert sampler.device.status.value == "calibration"
 
 
+@pytest.mark.parametrize(
+    ("keyword", "value", "error"),
+    [
+        ("timeout", float("nan"), ValueError),
+        ("poll_interval", float("inf"), ValueError),
+        ("timeout", float("-inf"), ValueError),
+        ("poll_interval", float("-inf"), ValueError),
+        ("timeout", True, TypeError),
+        ("poll_interval", "5", TypeError),
+    ],
+)
+def test_sampler_rejects_invalid_wait_configuration(
+    keyword: str,
+    value: object,
+    error: type[Exception],
+) -> None:
+    with pytest.raises(error):
+        make_cirq_sampler([], size=1, **{keyword: value})
+
+
 def test_run_sweep_resolves_parameters_and_preserves_resolver_order() -> None:
     sampler, _cloud = make_cirq_sampler(
         [
