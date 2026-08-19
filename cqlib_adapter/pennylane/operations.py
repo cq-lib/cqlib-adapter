@@ -90,7 +90,7 @@ class Y2M(Operation):
 
 
 class XY(Operation):
-    """One-qubit native XY(theta) pulse."""
+    """Pi rotation about an XY-plane axis whose phase is ``theta``."""
 
     num_wires = 1
     num_params = 1
@@ -99,10 +99,10 @@ class XY(Operation):
 
     @staticmethod
     def compute_matrix(theta: Any) -> Any:
-        return qml.RX.compute_matrix(theta)
+        return RXY.compute_matrix(pi, theta)
 
     def adjoint(self) -> XY:
-        return XY(-self.data[0], wires=self.wires)
+        return XY(self.data[0] + pi, wires=self.wires)
 
 
 class XY2P(Operation):

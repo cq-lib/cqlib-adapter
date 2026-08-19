@@ -18,6 +18,8 @@ import cirq
 import numpy as np
 import pytest
 import sympy
+from cqlib.circuit.gates import RXY as CqlibRXY
+from cqlib.circuit.gates import XY as CqlibXY
 
 from cqlib_adapter.cirq import (
     RXYGate,
@@ -69,6 +71,35 @@ def test_half_rotation_inverse_pairs(positive: cirq.Gate, negative: cirq.Gate) -
 def test_qcis_gate_unitaries_are_unitary(gate: cirq.Gate) -> None:
     matrix = cirq.unitary(gate)
     np.testing.assert_allclose(matrix.conj().T @ matrix, np.eye(matrix.shape[0]), atol=1e-12)
+
+
+@pytest.mark.parametrize("axis", [0.0, 0.31, -0.29, pi / 2])
+def test_xy_gate_matrix_matches_cqlib(axis: float) -> None:
+    np.testing.assert_allclose(
+        cirq.unitary(XYGate(axis)),
+        CqlibXY.matrix([axis]),
+        atol=1e-12,
+    )
+
+
+def test_xy_gate_inverse_and_real_powers_preserve_axis_semantics() -> None:
+    axis = 0.31
+    gate = XYGate(axis)
+
+    inverse = gate**-1
+    assert inverse == XYGate(axis + pi)
+    np.testing.assert_allclose(
+        cirq.unitary(inverse) @ cirq.unitary(gate),
+        np.eye(2),
+        atol=1e-12,
+    )
+
+    for exponent in (0, 0.5, 2):
+        np.testing.assert_allclose(
+            cirq.unitary(gate**exponent),
+            CqlibRXY.matrix([pi * exponent, axis]),
+            atol=1e-12,
+        )
 
 
 def test_parameterized_native_gate_resolves_through_cirq_protocol() -> None:

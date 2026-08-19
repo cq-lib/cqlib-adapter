@@ -118,14 +118,22 @@ class Y2MGate(Gate):
 
 
 class XYGate(Gate):
-    """One-qubit native XY(theta) pulse gate."""
+    """Pi rotation about an XY-plane axis whose phase is ``theta``."""
 
     def __init__(self, theta: ParameterValueType, label: str | None = None) -> None:
         super().__init__("xy", 1, [theta], label=label)
 
+    def _define(self) -> None:
+        theta = self.params[0]
+        definition = QuantumCircuit(1)
+        definition.rz(-theta, 0)
+        definition.rx(pi, 0)
+        definition.rz(theta, 0)
+        self.definition = definition
+
     def inverse(self, annotated: bool = False) -> XYGate:
         del annotated
-        return XYGate(-self.params[0], label=self.label)
+        return XYGate(self.params[0] + pi, label=self.label)
 
 
 class XY2PGate(Gate):
@@ -180,9 +188,9 @@ class RXYGate(Gate):
     def _define(self) -> None:
         theta, phi = self.params
         definition = QuantumCircuit(1)
-        definition.rz(phi, 0)
-        definition.rx(theta, 0)
         definition.rz(-phi, 0)
+        definition.rx(theta, 0)
+        definition.rz(phi, 0)
         self.definition = definition
 
     def inverse(self, annotated: bool = False) -> RXYGate:

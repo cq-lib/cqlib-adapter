@@ -13,12 +13,14 @@
 from __future__ import annotations
 
 import cirq
+import numpy as np
 import pytest
 import sympy
 from cqlib.device import Layout
 
 from cqlib_adapter.cirq import (
     X2PGate,
+    XYGate,
     cirq_to_cqlib,
     compile_cirq_circuit,
     cqlib_to_cirq,
@@ -111,6 +113,30 @@ def test_cqlib_roundtrip_preserves_supported_operations_and_keys() -> None:
         isinstance(operation.gate, cirq.GlobalPhaseGate) for operation in restored.all_operations()
     )
     assert tuple(restored.all_qubits()) == tuple(qubits)
+
+
+def test_xy_roundtrip_preserves_axis_phase_and_gate_semantics() -> None:
+    axis = 0.31
+    qubit = cirq.LineQubit(0)
+    source = cirq.Circuit(XYGate(axis).on(qubit), cirq.measure(qubit, key="result"))
+
+    bundle = cirq_to_cqlib(source)
+    restored = cqlib_to_cirq(bundle.circuit, metadata=bundle.metadata)
+    restored_xy = [
+        operation.gate
+        for operation in restored.all_operations()
+        if isinstance(operation.gate, XYGate)
+    ]
+
+    converted_xy = bundle.circuit.operations[0]
+    assert converted_xy.instruction.instruction.name.lower() == "xy"
+    assert converted_xy.params == pytest.approx([axis])
+    assert restored_xy == [XYGate(axis)]
+    np.testing.assert_allclose(
+        cirq.unitary(restored_xy[0]),
+        cirq.unitary(XYGate(axis)),
+        atol=1e-12,
+    )
 
 
 def test_parameter_and_measurement_boundary_errors_are_explicit() -> None:

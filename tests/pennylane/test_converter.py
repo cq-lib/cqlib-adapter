@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pennylane as qml
 import pytest
 
@@ -21,6 +22,7 @@ from pennylane.tape import QuantumScript
 from cqlib_adapter.common import AdapterConversionError, CompilationOptions
 from cqlib_adapter.pennylane import (
     X2P,
+    XY,
     compile_pennylane_circuit,
     cqlib_to_pennylane,
     pennylane_to_cqlib,
@@ -135,6 +137,33 @@ def test_cqlib_roundtrip_restores_pennylane_operations_and_measurement() -> None
     assert [item.name for item in restored.operations] == ["PauliX", "CZ", "RY"]
     assert tuple(restored.wires) == ("a", "b")
     assert type(restored.measurements[0]).__name__ == "ProbabilityMP"
+
+
+def test_xy_roundtrip_preserves_axis_phase_and_operation_semantics() -> None:
+    axis = 0.31
+    tape = QuantumScript(
+        [XY(axis, wires="q")],
+        [qml.counts(wires="q")],
+        shots=20,
+    )
+
+    bundle = pennylane_to_cqlib(tape, wire_order=("q",))
+    restored = cqlib_to_pennylane(
+        bundle.circuit,
+        metadata=bundle.metadata,
+        shots=20,
+        measurement="counts",
+    )
+
+    assert operation_names(bundle)[0] == "xy"
+    assert len(restored.operations) == 1
+    assert isinstance(restored.operations[0], XY)
+    assert tuple(restored.operations[0].data) == pytest.approx((axis,))
+    np.testing.assert_allclose(
+        qml.matrix(restored.operations[0]),
+        qml.matrix(XY(axis, wires="q")),
+        atol=1e-12,
+    )
 
 
 def test_pauli_observable_measurements_insert_basis_rotations() -> None:

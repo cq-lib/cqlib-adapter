@@ -12,9 +12,12 @@
 
 from __future__ import annotations
 
+from math import pi
+
 import numpy as np
 import pennylane as qml
 import pytest
+from cqlib.circuit.gates import XY as CqlibXY
 
 from cqlib_adapter.pennylane import (
     RXY,
@@ -48,6 +51,28 @@ pytestmark = pytest.mark.pennylane
 def test_qcis_operation_matrix_is_unitary(operation: object) -> None:
     matrix = np.asarray(qml.matrix(operation), dtype=complex)
     np.testing.assert_allclose(matrix.conj().T @ matrix, np.eye(matrix.shape[0]), atol=1e-10)
+
+
+@pytest.mark.parametrize("axis", [0.0, 0.31, -0.29, pi / 2])
+def test_xy_operation_matrix_matches_cqlib(axis: float) -> None:
+    np.testing.assert_allclose(
+        qml.matrix(XY(axis, wires=0)),
+        CqlibXY.matrix([axis]),
+        atol=1e-12,
+    )
+
+
+def test_xy_operation_adjoint_uses_opposite_axis() -> None:
+    axis = 0.31
+    operation = XY(axis, wires="q")
+    adjoint = operation.adjoint()
+
+    assert tuple(adjoint.data) == pytest.approx((axis + pi,))
+    np.testing.assert_allclose(
+        np.asarray(qml.matrix(adjoint)) @ np.asarray(qml.matrix(operation)),
+        np.eye(2),
+        atol=1e-12,
+    )
 
 
 @pytest.mark.parametrize(

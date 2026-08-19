@@ -129,7 +129,7 @@ class Y2MGate(_FixedHalfRotation):
 
 @dataclass(frozen=True)
 class XYGate(cirq.Gate):
-    """One-qubit native XY(theta) pulse."""
+    """Pi rotation about an XY-plane axis whose phase is ``theta``."""
 
     theta: Any
 
@@ -148,15 +148,19 @@ class XYGate(cirq.Gate):
     def _unitary_(self) -> Any:
         if self._is_parameterized_():
             return NotImplemented
-        return cirq.unitary(cirq.rx(float(self.theta)))
+        return _rxy_matrix(pi, float(self.theta))
 
     def _circuit_diagram_info_(self, args: cirq.CircuitDiagramInfoArgs) -> str:
         del args
         return f"XY({self.theta})"
 
     def __pow__(self, exponent: Any) -> Any:
+        if exponent == 1:
+            return self
+        if exponent == -1:
+            return XYGate(self.theta + pi)
         if isinstance(exponent, int | float):
-            return XYGate(self.theta * exponent)
+            return RXYGate(pi * exponent, self.theta)
         return NotImplemented
 
 
