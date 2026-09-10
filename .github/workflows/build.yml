@@ -1,0 +1,48 @@
+# This code is part of cqlib.
+#
+# Copyright (C) 2026 China Telecom Quantum Group.
+#
+# Licensed under the Apache License, Version 2.0. See LICENSE in the
+# repository root or http://www.apache.org/licenses/LICENSE-2.0.
+
+name: Build distributions
+
+on:
+  push:
+    tags:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements.txt
+      - name: Install build tools
+        run: python -m pip install "build>=1.2" "twine>=5"
+      - name: Build sdist and wheel
+        run: python -m build
+      - name: Check distribution metadata
+        run: python -m twine check --strict dist/*
+      - name: Upload distributions
+        uses: actions/upload-artifact@v7
+        with:
+          name: cqlib-adapter-dist
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 90
