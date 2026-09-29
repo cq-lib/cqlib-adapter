@@ -219,11 +219,11 @@ def test_cudaq_mx_my_mz_are_lowered_to_basis_rotations_and_measurements() -> Non
 def test_compile_cudaq_kernel_lowers_real_cqlib_to_native_qcis() -> None:
     artifact = compile_cudaq_kernel(
         unmeasured_bell,
-        options=CompilationOptions(target_basis=NATIVE_BASIS, seed=19),
+        options=CompilationOptions(target_basis=NATIVE_BASIS),
     )
 
     assert "CZ Q0 Q1" in artifact.qcis
-    assert artifact.qcis.count("M Q") == 2
+    assert sum(line.startswith("M ") for line in artifact.qcis.splitlines()) == 2
     assert [(item.physical_qubit, item.classical_bit) for item in artifact.measurements] == [
         (0, 0),
         (1, 1),

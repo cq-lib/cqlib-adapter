@@ -78,7 +78,7 @@ def test_compile_uses_real_cqlib_native_lowering_and_initial_layout() -> None:
     assert artifact.circuit.validate() is None
     assert "CZ Q2 Q1" in artifact.qcis or "CZ Q1 Q2" in artifact.qcis
     assert tuple(item.physical_qubit for item in artifact.measurements) == (2, 1, 0)
-    assert artifact.qcis.count("M Q") == 3
+    assert sum(line.startswith("M ") for line in artifact.qcis.splitlines()) == 3
 
 
 def test_real_cqlib_topology_routes_nonadjacent_cirq_operation() -> None:

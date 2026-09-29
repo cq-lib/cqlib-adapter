@@ -4,14 +4,12 @@
 
 `cqlib-adapter` connects Qiskit, Cirq, PennyLane, and CUDA-Q programs to the current `cqlib`, `cqlib-tianyan`, and Tianyan Quantum Cloud platform.
 
-The project provides shared compilation, QCIS, device, job, and canonical-result infrastructure, plus Qiskit, Cirq, PennyLane, and CUDA-Q adapters. Each adapter has conversion, local-simulator, mock-cloud, and explicitly opt-in real-device coverage. See [docs/testing.md](docs/testing.md) for test commands and [docs/cudaq-testing.md](docs/cudaq-testing.md) for CUDA-Q validation.
+The project provides shared compilation, QCIS, device, job, and canonical-result infrastructure, plus Qiskit, Cirq, PennyLane, and CUDA-Q adapters. Each adapter has conversion, mock-cloud, and explicitly opt-in real-device coverage. See [docs/testing.md](docs/testing.md) for test commands and [docs/cudaq-testing.md](docs/cudaq-testing.md) for CUDA-Q validation.
 
 ## Requirements
 
-- Python 3.11 or later; CI covers Python 3.11 through 3.13.
-- The current `cqlib==0.1.0` and `cqlib-tianyan==0.1.0` native bindings.
-
-The higher-numbered `cqlib 1.x` packages published on PyPI belong to a different legacy product line. They cannot replace the `0.1.0` API required by this project.
+- Python 3.11 or later; CI tests the floor and latest (3.11 and 3.14) on Linux, Windows, and macOS.
+- The current `cqlib` and `cqlib-tianyan` native bindings, installed automatically from PyPI as project dependencies; the compatible ranges are declared in [pyproject.toml](pyproject.toml).
 
 ## Install an adapter
 
@@ -30,16 +28,16 @@ CUDA-Q supports Linux and Apple Silicon macOS; use WSL2 on Windows. On Windows, 
 
 ## Minimal offline examples
 
-Install local `cqlib==0.1.0`, `cqlib-tianyan==0.1.0`, and the required framework extra first. Run these commands from the repository root. They neither read an API key nor create a cloud task.
+Install `cqlib`, `cqlib-tianyan`, and the required framework extra first; pip pulls the native bindings from PyPI automatically when the adapter is installed. Run these commands from the repository root. They neither read an API key nor create a cloud task.
 
-| Adapter | Conversion | Local semantic execution |
+| Adapter | Conversion | Mock closed loop |
 |---|---|---|
-| Qiskit | `python examples/qiskit/01_conversion.py` | `python examples/qiskit/04_grover_simulator.py` |
-| PennyLane | `python examples/pennylane/01_conversion.py` | `python examples/pennylane/04_grover_simulator.py` |
-| Cirq | `python examples/cirq/01_conversion.py` | `python examples/cirq/04_grover_simulator.py` |
-| CUDA-Q (Linux/WSL2) | `python examples/cudaq/01_conversion.py` | `python examples/cudaq/04_grover_simulator.py` |
+| Qiskit | `python examples/qiskit/01_conversion.py` | `python examples/qiskit/02_mock_closed_loop.py` |
+| PennyLane | `python examples/pennylane/01_conversion.py` | `python examples/pennylane/02_mock_closed_loop.py` |
+| Cirq | `python examples/cirq/01_conversion.py` | `python examples/cirq/02_mock_closed_loop.py` |
+| CUDA-Q (Linux/WSL2) | `python examples/cudaq/01_conversion.py` | `python examples/cudaq/02_mock_closed_loop.py` |
 
-`01_conversion.py` shows the smallest framework-to-cqlib/QCIS path. `04_grover_simulator.py` compares the framework reference with the real local cqlib simulator and prints `PASS` only when their semantics agree. Bit order, statevector scaling, basis measurements, mock-cloud, and real-device examples are described in [examples/README.md](examples/README.md) and the framework-specific example directories. `03_tianyan_cloud.py` and `031_tianyan_topology.py` create external tasks only after explicit operator authorization and credentials are provided.
+`01_conversion.py` shows the smallest framework-to-cqlib/QCIS path. `02_mock_closed_loop.py` exercises the full Backend/Sampler/Device submission path against a mock cloud transport with preconfigured counts; it validates transport, task, and result-shape contracts rather than quantum semantics. Real-device examples are described in [examples/README.md](examples/README.md) and the framework-specific example directories. `03_tianyan_cloud.py` and `031_tianyan_topology.py` create external tasks only after explicit operator authorization and credentials are provided.
 
 ### CUDA-Q direct conversion
 
@@ -47,13 +45,7 @@ The production CUDA-Q path reads a kernel or builder's Quake MLIR directly and c
 
 ### PennyLane basis measurements
 
-For finite shots, the PennyLane adapter supports single-wire Pauli X/Y/Z observables with `qml.counts`, `qml.sample`, `qml.expval`, and `qml.var`. It inserts H for X, S† then H for Y, and no rotation for Z before measurement. Canonical bits are converted to PennyLane's ±1 eigenvalues, and incompatible bases on one wire raise a clear error.
-
-```bash
-python examples/pennylane/08_basis_measurement.py
-```
-
-This example prepares known +1 Pauli X/Y eigenstates and validates basis rotation, cqlib/QCIS execution, and eigenvalue results. Unit tests cover Pauli Z and the `sample`/`expval`/`var` boundary cases.
+For finite shots, the PennyLane adapter supports single-wire Pauli X/Y/Z observables with `qml.counts`, `qml.sample`, `qml.expval`, and `qml.var`. It inserts H for X, S† then H for Y, and no rotation for Z before measurement. Canonical bits are converted to PennyLane's ±1 eigenvalues, and incompatible bases on one wire raise a clear error. Unit tests cover the basis rotations, eigenvalue conversion, and the `sample`/`expval`/`var` boundary cases.
 
 ### PennyLane authentication and run options
 
@@ -81,44 +73,21 @@ conda env create -f environment-dev.yml
 conda activate cqlib-adapter-dev
 ```
 
-`environment-dev.yml` creates the Python, optional-framework, and quality-tool environment, but does not install the native `cqlib` and `cqlib-tianyan` bindings required by integration tests. Build those bindings from sibling checkouts at the exact approved revisions recorded in [pyproject.toml](pyproject.toml), rather than either repository's default branch. The repositories should share a parent directory:
+`environment-dev.yml` creates the Python, optional-framework, and quality-tool environment. The native `cqlib` and `cqlib-tianyan` bindings are published on PyPI with prebuilt wheels for the supported platforms, so no source build is required.
 
-```text
-quantum-workspace/
-├── cqlib-adapter/
-├── cqlib/
-└── cqlib-tianyan/
-```
-
-Clone and build the approved revisions if they are not already present:
+Install the adapter in editable mode; pip pulls the `cqlib` and `cqlib-tianyan` dependencies from PyPI:
 
 ```bash
-git clone https://github.com/cq-lib/cqlib.git ../cqlib
-git -C ../cqlib checkout 21f4814ce2cc7798b7102618d5a7617b47cd75b7
-git clone https://github.com/cq-lib/cqlib-tianyan.git ../cqlib-tianyan
-git -C ../cqlib-tianyan checkout ea3e88bb367e575f33ba1f9eca25aa283b77bd3c
+python -m pip install -e ".[dev]"
 ```
 
-Build and install each binding without modifying Rust sources:
-
-```bash
-cd ../cqlib/crates/binding-python
-maturin develop --release
-cd ../../../cqlib-tianyan/crates/binding-python
-maturin develop --release
-```
-
-Confirm that local `0.1.0` native extensions are loaded:
+Confirm that the PyPI native extensions are loaded:
 
 ```bash
 python -c "from importlib.metadata import version; import cqlib._native, cqlib_tianyan._cqlib_tianyan; print(version('cqlib'), cqlib._native.__file__); print(version('cqlib-tianyan'), cqlib_tianyan._cqlib_tianyan.__file__)"
 ```
 
-Install the adapter after the native bindings are available:
-
-```bash
-python -m pip install -e ".[dev]"
-```
+The reported versions must satisfy the compatible ranges declared in [pyproject.toml](pyproject.toml).
 
 The `dev` extra is the documented Windows development/test surface: it includes quality tools plus Qiskit, Cirq, and PennyLane. Linux/WSL uses the same extra with CUDA-Q added explicitly. This keeps declared dependencies, the environment file, documentation, and CI commands aligned:
 

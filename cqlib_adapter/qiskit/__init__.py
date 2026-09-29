@@ -40,8 +40,6 @@ _EXPORTS: Final = {
     "compile_qiskit_circuit": (".converter", "compile_qiskit_circuit"),
     "coupling_map_from_device": (".target", "coupling_map_from_device"),
     "target_from_device": (".target", "target_from_device"),
-    "CqlibSimulatorBackend": (".local_simulator", "CqlibSimulatorBackend"),
-    "CqlibStatevectorResult": (".local_simulator", "CqlibStatevectorResult"),
     "TianyanBackend": (".backend", "TianyanBackend"),
     "TianyanBackendStatus": (".backend", "TianyanBackendStatus"),
     "TianyanJob": (".job", "TianyanJob"),
@@ -80,8 +78,6 @@ def __dir__() -> list[str]:
 __all__ = [
     "EXTRA_NAME",
     "FRAMEWORK_MODULE",
-    "CqlibSimulatorBackend",
-    "CqlibStatevectorResult",
     "FSimGate",
     "RXYGate",
     "TianyanBackend",

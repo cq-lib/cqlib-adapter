@@ -1,12 +1,11 @@
 name: cqlib-adapter-dev
-# This file creates the Python, optional-framework, and tooling environment, but not
-# native cqlib/cqlib-tianyan bindings. Build sibling bindings, then install -e ".[dev]".
+# This file creates the Python, optional-framework, and tooling environment.
+# The native cqlib/cqlib-tianyan bindings are pulled from PyPI by -e ".[dev]".
 channels:
   - conda-forge
 dependencies:
   - python=3.11
   - pip>=24
-  - maturin>=1.11,<2
   - numpy>=2.1
   - build>=1.2
   - hypothesis>=6.100
@@ -17,6 +16,6 @@ dependencies:
   - ruff>=0.12
   - twine>=6
   - pip:
-      - qiskit>=2.5,<3
+      - qiskit>=2.1,<3
       - cirq-core>=1.7,<2
-      - pennylane>=0.45,<0.46
+      - pennylane>=0.44,<1

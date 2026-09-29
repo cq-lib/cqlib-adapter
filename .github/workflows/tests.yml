@@ -1,0 +1,111 @@
+name: Tests
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11", "3.14"]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+      - name: Install project with development tools
+        run: python -m pip install -e ".[dev]"
+      - name: Run tests
+        if: runner.os != 'Windows'
+        run: python -m pytest -m "not cloud and not cudaq"
+      - name: Run tests with the documented Windows coverage command
+        if: runner.os == 'Windows'
+        run: >-
+          python -m pytest --cov=cqlib_adapter
+          --cov-config=coverage-windows.ini --cov-report=term-missing
+          -m "not cloud and not cudaq"
+
+  compat:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - framework: qiskit
+            package: qiskit==2.1.0
+            extra: ""
+          - framework: qiskit
+            package: qiskit
+            extra: ""
+          - framework: cirq
+            package: cirq-core==1.7.0
+            extra: ""
+          - framework: cirq
+            package: cirq-core
+            extra: ""
+          # pennylane 0.44 does not declare gast although pennylane.capture
+          # imports it; 0.45 fixed the metadata.
+          - framework: pennylane
+            package: pennylane==0.44.0
+            extra: gast
+          - framework: pennylane
+            package: pennylane
+            extra: ""
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+      - name: Install project with ${{ matrix.package }}
+        run: python -m pip install -e . pytest "${{ matrix.package }}" ${{ matrix.extra }}
+      - name: Run framework tests at the declared boundary
+        run: python -m pytest tests/${{ matrix.framework }} -m "not cloud and not slow" -q
+
+  cudaq:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+        cudaq-version: ["0.15.1", "0.16.0.post1"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+      - name: Install project with CUDA-Q
+        run: python -m pip install -e ".[dev,cudaq]"
+      - name: Pin CUDA-Q to the matrix version
+        run: python -m pip install "cudaq==${{ matrix.cudaq-version }}"
+      - name: Verify CUDA-Q CPU target
+        run: >-
+          python -c "import cudaq; cudaq.set_target('qpp-cpu');
+          print(cudaq.get_target())"
+      - name: Run tests with the documented Linux coverage command
+        run: >-
+          python -m pytest --cov=cqlib_adapter --cov-report=term-missing
+          -m "not cloud"

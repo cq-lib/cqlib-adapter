@@ -510,7 +510,9 @@ class _QuakeInterpreter:
                     raise AdapterConversionError("quake.reset must target one qubit")
                 self.circuit.reset(qubits[0])
                 continue
-            if name in {"func.return", "quake.dealloc"}:
+            # CUDA-Q >= 0.16 injects quake.log_output output markers; they carry
+            # no circuit semantics and are safe to ignore.
+            if name in {"func.return", "quake.dealloc", "quake.log_output"}:
                 continue
             if name.startswith("quake."):
                 self._append_gate(operation)

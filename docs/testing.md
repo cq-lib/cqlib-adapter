@@ -12,42 +12,7 @@ The default tests are offline and deterministic. They cover packaging boundaries
 
 ## Required native Python packages
 
-`environment-dev.yml` creates the Python, optional-framework, and tooling environment,
-but does not install native bindings. The integration suite must additionally load local
-Rust/PyO3 builds from sibling `cqlib` and `cqlib-tianyan` checkouts. Use the exact
-revisions recorded in `pyproject.toml`;
-their installed Python package versions must both be `0.1.0`. If the sibling
-checkouts are missing, create them first, then run:
-
-```bash
-git clone https://github.com/cq-lib/cqlib.git ../cqlib
-git -C ../cqlib checkout 21f4814ce2cc7798b7102618d5a7617b47cd75b7
-git clone https://github.com/cq-lib/cqlib-tianyan.git ../cqlib-tianyan
-git -C ../cqlib-tianyan checkout ea3e88bb367e575f33ba1f9eca25aa283b77bd3c
-git -C ../cqlib status --short
-git -C ../cqlib-tianyan status --short
-```
-
-Both status commands must be empty before building the native bindings.
-
-Build the approved revisions with:
-
-```bash
-cd ../cqlib/crates/binding-python
-maturin develop --release
-cd ../../../cqlib-tianyan/crates/binding-python
-maturin develop --release
-```
-
-Verify both versions and native extension files before testing:
-
-```bash
-python -c "from importlib.metadata import version; import cqlib._native, cqlib_tianyan._cqlib_tianyan; print(version('cqlib'), cqlib._native.__file__); print(version('cqlib-tianyan'), cqlib_tianyan._cqlib_tianyan.__file__)"
-```
-
-Both versions must be `0.1.0`; the native files must be `.pyd` on Windows or a Python extension `.so` on Linux/macOS.
-
-Install the adapter test surface after the native packages are available:
+`environment-dev.yml` creates the Python, optional-framework, and tooling environment. The integration suite additionally loads the native `cqlib` and `cqlib-tianyan` bindings, which are published on PyPI with prebuilt wheels for the supported platforms. They are declared as project dependencies in `pyproject.toml`, so installing the adapter pulls them automatically:
 
 ```bash
 # Windows/macOS: Qiskit, Cirq and PennyLane plus quality tools.
@@ -56,6 +21,14 @@ python -m pip install -e ".[dev]"
 # Linux/WSL: add CUDA-Q for the complete four-framework suite.
 python -m pip install -e ".[dev,cudaq]"
 ```
+
+Verify both versions and native extension files before testing:
+
+```bash
+python -c "from importlib.metadata import version; import cqlib._native, cqlib_tianyan._cqlib_tianyan; print(version('cqlib'), cqlib._native.__file__); print(version('cqlib-tianyan'), cqlib_tianyan._cqlib_tianyan.__file__)"
+```
+
+Both versions must satisfy the compatible ranges declared in `pyproject.toml`; the native files must be `.pyd` on Windows or a Python extension `.so` on Linux/macOS.
 
 ## Shared-core coverage
 
@@ -94,7 +67,7 @@ may grow as tests are added, so command exit status, explicit expected skips and
 assertions are authoritative. Framework-specific offline and cloud examples are
 documented in `examples/README.md` and in each framework's example directory.
 
-CUDA-Q has an independent Linux workflow in `.github/workflows/cudaq.yml`.
+CUDA-Q runs as a dedicated Linux job in `.github/workflows/tests.yml`.
 See `docs/cudaq-testing.md` for its module-by-module WSL commands.
 
 Real cloud tests create external tasks. They require explicit selection and all documented environment gates; never run them as part of a release check:

@@ -92,11 +92,11 @@ def test_bell_circuit_compiles_through_real_cqlib_to_qcis() -> None:
 
     artifact = compile_qiskit_circuit(
         circuit,
-        options=CompilationOptions(target_basis=NATIVE_BASIS, seed=19),
+        options=CompilationOptions(target_basis=NATIVE_BASIS),
     )
 
     assert "CZ Q0 Q1" in artifact.qcis
-    assert artifact.qcis.count("M Q") == 2
+    assert sum(line.startswith("M ") for line in artifact.qcis.splitlines()) == 2
     assert [(item.physical_qubit, item.classical_bit) for item in artifact.measurements] == [
         (0, 0),
         (1, 1),

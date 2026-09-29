@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import inspect
 from importlib.machinery import EXTENSION_SUFFIXES
-from importlib.metadata import version
+from importlib.metadata import requires, version
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +27,7 @@ from cqlib_tianyan import (
     TianyanConfig,
     TianyanPlatform,
 )
+from packaging.requirements import Requirement
 
 from cqlib_adapter.common import AdapterSubmissionError, TianyanConnector
 
@@ -36,7 +37,12 @@ pytestmark = pytest.mark.integration
 def test_uses_local_rust_compiled_cqlib_tianyan_extension() -> None:
     import cqlib_tianyan._cqlib_tianyan as native
 
-    assert version("cqlib-tianyan") == "0.1.0"
+    requirement = next(
+        requirement
+        for requirement in (Requirement(item) for item in requires("cqlib-adapter") or [])
+        if requirement.name == "cqlib-tianyan"
+    )
+    assert requirement.specifier.contains(version("cqlib-tianyan"), prereleases=True)
     assert Path(cqlib_tianyan.__file__).resolve().is_file()
     native_path = str(Path(native.__file__).resolve())
     assert any(native_path.endswith(suffix) for suffix in EXTENSION_SUFFIXES)
@@ -82,7 +88,7 @@ def test_adapter_calls_are_supported_by_native_tianyan_signatures() -> None:
     inspect.signature(TianyanBackend.run_with_mode).bind(object(), ["M Q0"], 100, "enabled")
     inspect.signature(TianyanBackend.device_config).bind(object())
     inspect.signature(TaskHandle.status).bind(object())
-    inspect.signature(TaskHandle.wait).bind(object(), timeout_secs=120.0, poll_interval_secs=5.0)
+    inspect.signature(TaskHandle.wait).bind(object(), timeout=120.0, poll_interval=5.0)
 
 
 def test_connector_login_and_credentials_bridge_imported_native_module(

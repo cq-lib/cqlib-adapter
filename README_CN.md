@@ -4,13 +4,12 @@
 
 `cqlib-adapter` 将 Qiskit、Cirq、PennyLane 和 CUDA-Q 电路接入新版 `cqlib`、`cqlib-tianyan` 与天衍量子计算云平台。
 
-项目提供共享的 cqlib 编译、QCIS、天衍设备/任务和 canonical result 基础设施，以及 Qiskit、Cirq、PennyLane、CUDA-Q 适配器。每套适配器包含框架转换、本地模拟器、mock 云闭环和显式启用的真机测试。完整测试说明见 [docs/testing.md](docs/testing.md)，CUDA-Q 说明见 [docs/cudaq-testing.md](docs/cudaq-testing.md)。
+项目提供共享的 cqlib 编译、QCIS、天衍设备/任务和 canonical result 基础设施，以及 Qiskit、Cirq、PennyLane、CUDA-Q 适配器。每套适配器包含框架转换、mock 云闭环和显式启用的真机测试。完整测试说明见 [docs/testing.md](docs/testing.md)，CUDA-Q 说明见 [docs/cudaq-testing.md](docs/cudaq-testing.md)。
 
 ## 运行要求
 
-- Python 3.11 及以上；CI 覆盖 Python 3.11–3.13。
-- 本项目需要新版 `cqlib==0.1.0` 与 `cqlib-tianyan==0.1.0`。
-- PyPI 中版本号更高的 `cqlib 1.x` 属于旧产品线，不能替代本项目要求的 `0.1.0` API。
+- Python 3.11 及以上；CI 在 Linux、Windows、macOS 上测试下限与最新版本（3.11 和 3.14）。
+- 本项目需要新版 `cqlib` 与 `cqlib-tianyan` 原生绑定，两者已发布到 PyPI，安装适配器时作为项目依赖自动拉取；兼容区间以 [pyproject.toml](pyproject.toml) 的依赖声明为准。
 
 ## 按框架安装
 
@@ -26,28 +25,22 @@ pip install "cqlib-adapter[all]"
 
 ## 最小离线示例
 
-先安装本地 `cqlib==0.1.0`、`cqlib-tianyan==0.1.0` 和所需框架 extra，再从仓库根目录运行。下面的命令不读取 API key，也不创建云任务：
+先安装 `cqlib`、`cqlib-tianyan` 和所需框架 extra（安装适配器时 pip 会从 PyPI 自动拉取这两个原生包），再从仓库根目录运行。下面的命令不读取 API key，也不创建云任务：
 
-| 适配器 | 转换 | 本地语义执行 |
+| 适配器 | 转换 | mock 闭环 |
 |---|---|---|
-| Qiskit | `python examples/qiskit/01_conversion.py` | `python examples/qiskit/04_grover_simulator.py` |
-| PennyLane | `python examples/pennylane/01_conversion.py` | `python examples/pennylane/04_grover_simulator.py` |
-| Cirq | `python examples/cirq/01_conversion.py` | `python examples/cirq/04_grover_simulator.py` |
-| CUDA-Q（Linux/WSL2） | `python examples/cudaq/01_conversion.py` | `python examples/cudaq/04_grover_simulator.py` |
+| Qiskit | `python examples/qiskit/01_conversion.py` | `python examples/qiskit/02_mock_closed_loop.py` |
+| PennyLane | `python examples/pennylane/01_conversion.py` | `python examples/pennylane/02_mock_closed_loop.py` |
+| Cirq | `python examples/cirq/01_conversion.py` | `python examples/cirq/02_mock_closed_loop.py` |
+| CUDA-Q（Linux/WSL2） | `python examples/cudaq/01_conversion.py` | `python examples/cudaq/02_mock_closed_loop.py` |
 
-`01_conversion.py` 展示框架线路到 cqlib/QCIS 的最小路径；`04_grover_simulator.py` 将框架参考结果与真实 cqlib 本地模拟结果比较，语义一致时输出 `PASS`。位序、statevector scaling、换基测量、mock 与真机示例见 [examples/README.md](examples/README.md) 和各框架目录 README。真机 `03_tianyan_cloud.py` 与 `031_tianyan_topology.py` 需要明确授权和当前终端中的凭证。
+`01_conversion.py` 展示框架线路到 cqlib/QCIS 的最小路径；`02_mock_closed_loop.py` 用预置 counts 的 mock 云传输跑通 Backend/Sampler/Device 的完整提交链路，验证传输、任务与结果结构契约，而不是量子语义。真机示例见 [examples/README.md](examples/README.md) 和各框架目录 README。真机 `03_tianyan_cloud.py` 与 `031_tianyan_topology.py` 需要明确授权和当前终端中的凭证。
 
 CUDA-Q 的正式路径直接读取 kernel/builder 的 Quake MLIR 并构造 `cqlib.Circuit`，不依赖 OpenQASM 2，也不在失败时回退 QASM。`cudaq_to_openqasm()` 只是用户主动调用的诊断导出工具。固定宽度多 `qalloc`、参数化 decorator、简单标量 builder、可静态求值循环、终端 `mx`/`my`/`mz` 均受支持；无显式测量时会补充全量 `mz`，动态线路结构会明确报错。
 
 ### PennyLane 换基测量
 
-有限 shots 下，PennyLane 支持单 wire Pauli X/Y/Z observable 的 `qml.counts`、`qml.sample`、`qml.expval` 和 `qml.var`。转换器测量前插入换基门：X 基为 H，Y 基为 S†+H，Z 基不变，并将 canonical bit 结果转换为 PennyLane 的 ±1 本征值。同一 wire 请求不兼容测量基会明确报错。
-
-```bash
-python examples/pennylane/08_basis_measurement.py
-```
-
-该示例用 Pauli X/Y 的已知 +1 本征态验证换基门、cqlib/QCIS 执行与本征值结果；Pauli Z 及 `sample`/`expval`/`var` 边界由单元测试覆盖。
+有限 shots 下，PennyLane 支持单 wire Pauli X/Y/Z observable 的 `qml.counts`、`qml.sample`、`qml.expval` 和 `qml.var`。转换器测量前插入换基门：X 基为 H，Y 基为 S†+H，Z 基不变，并将 canonical bit 结果转换为 PennyLane 的 ±1 本征值。同一 wire 请求不兼容测量基会明确报错。换基门、本征值转换及 `sample`/`expval`/`var` 边界均由单元测试覆盖。
 
 ### PennyLane 认证与运行参数
 
@@ -75,35 +68,21 @@ conda env create -f environment-dev.yml
 conda activate cqlib-adapter-dev
 ```
 
-`environment-dev.yml` 创建 Python、可选框架和质量工具环境，但不会安装集成测试所需的原生 `cqlib` 与 `cqlib-tianyan` 绑定；请从同一父目录中的源码构建它们：
+`environment-dev.yml` 创建 Python、可选框架和质量工具环境。原生 `cqlib` 与 `cqlib-tianyan` 绑定已发布到 PyPI，并为受支持平台提供预编译 wheel，无需再从源码编译。
 
-```text
-quantum-workspace/
-├── cqlib-adapter/
-├── cqlib/
-└── cqlib-tianyan/
-```
-
-必须使用 [`pyproject.toml`](pyproject.toml) 记录的精确修订，而不是默认分支：
+以可编辑模式安装适配器，pip 会把项目依赖 `cqlib` 与 `cqlib-tianyan` 一并从 PyPI 拉取：
 
 ```bash
-git clone https://github.com/cq-lib/cqlib.git ../cqlib
-git -C ../cqlib checkout 21f4814ce2cc7798b7102618d5a7617b47cd75b7
-git clone https://github.com/cq-lib/cqlib-tianyan.git ../cqlib-tianyan
-git -C ../cqlib-tianyan checkout ea3e88bb367e575f33ba1f9eca25aa283b77bd3c
-cd ../cqlib/crates/binding-python
-maturin develop --release
-cd ../../../cqlib-tianyan/crates/binding-python
-maturin develop --release
+python -m pip install -e ".[dev]"
 ```
 
-确认安装的是本地 `0.1.0` 原生扩展：
+确认加载的是 PyPI 原生扩展，版本应满足 [pyproject.toml](pyproject.toml) 声明的兼容区间：
 
 ```bash
 python -c "from importlib.metadata import version; import cqlib._native, cqlib_tianyan._cqlib_tianyan; print(version('cqlib'), cqlib._native.__file__); print(version('cqlib-tianyan'), cqlib_tianyan._cqlib_tianyan.__file__)"
 ```
 
-然后安装适配器：
+`dev` extra 是文档约定的 Windows/macOS 开发测试面，包含质量工具与 Qiskit、Cirq、PennyLane；Linux/WSL 在此基础上显式追加 CUDA-Q：
 
 ```bash
 # Windows/macOS：质量工具、Qiskit、Cirq、PennyLane

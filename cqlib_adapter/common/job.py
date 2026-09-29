@@ -148,8 +148,8 @@ class AdapterJob:
                     )
                 raw.extend(
                     handle.wait(
-                        timeout_secs=remaining,
-                        poll_interval_secs=effective_poll,
+                        timeout=remaining,
+                        poll_interval=effective_poll,
                     )
                 )
         except AdapterJobTimeoutError:

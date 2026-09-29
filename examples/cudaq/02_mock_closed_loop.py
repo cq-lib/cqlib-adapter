@@ -12,8 +12,9 @@
 
 """No-network CUDA-Q job/sample-result contract test with preset counts.
 
-This mock does not simulate the submitted kernel. Use the local cqlib examples
-for quantum-semantic validation.
+This mock does not simulate the submitted kernel; it returns the preset
+counts verbatim. It is the only offline execution path, intended for
+transport/job/result contract validation.
 """
 
 from __future__ import annotations
