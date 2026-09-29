@@ -152,7 +152,7 @@ def test_uses_local_rust_compiled_cqlib_extension() -> None:
     import cqlib
     import cqlib._native as native
 
-    assert version("cqlib") == "0.1.0"
+    assert version("cqlib") == "2.0.0b1"
     assert Path(cqlib.__file__).resolve().is_file()
     native_path = str(Path(native.__file__).resolve())
     assert any(native_path.endswith(suffix) for suffix in EXTENSION_SUFFIXES)

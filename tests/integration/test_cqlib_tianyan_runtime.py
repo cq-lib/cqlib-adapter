@@ -36,7 +36,7 @@ pytestmark = pytest.mark.integration
 def test_uses_local_rust_compiled_cqlib_tianyan_extension() -> None:
     import cqlib_tianyan._cqlib_tianyan as native
 
-    assert version("cqlib-tianyan") == "0.1.0"
+    assert version("cqlib-tianyan") == "0.1.0b1"
     assert Path(cqlib_tianyan.__file__).resolve().is_file()
     native_path = str(Path(native.__file__).resolve())
     assert any(native_path.endswith(suffix) for suffix in EXTENSION_SUFFIXES)

@@ -36,8 +36,8 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "cqlib==0.1.0",
-    "cqlib-tianyan==0.1.0",
+    "cqlib==2.0.0b1",
+    "cqlib-tianyan==0.1.0b1",
 ]
 
 [project.optional-dependencies]

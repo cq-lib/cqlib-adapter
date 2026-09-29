@@ -14,7 +14,12 @@ from __future__ import annotations
 
 import tomllib
 from configparser import ConfigParser
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as distribution_version
 from pathlib import Path
+
+import pytest
+from packaging.version import Version
 
 import cqlib_adapter
 
@@ -26,8 +31,16 @@ def load_pyproject() -> dict[str, object]:
         return tomllib.load(file)
 
 
-def test_version_identifies_second_generation() -> None:
-    assert cqlib_adapter.__version__ == "2.0.0.dev0"
+def test_version_is_valid_pep440() -> None:
+    Version(cqlib_adapter.__version__)
+
+
+def test_version_matches_installed_distribution() -> None:
+    try:
+        installed = distribution_version("cqlib-adapter")
+    except PackageNotFoundError:
+        pytest.skip("cqlib-adapter is not installed")
+    assert Version(cqlib_adapter.__version__) == Version(installed)
 
 
 def test_python_baseline_is_shared_by_current_frameworks() -> None:
@@ -39,7 +52,7 @@ def test_python_baseline_is_shared_by_current_frameworks() -> None:
 def test_base_dependencies_are_pinned_to_new_local_product_line() -> None:
     project = load_pyproject()["project"]
     assert isinstance(project, dict)
-    assert project["dependencies"] == ["cqlib==0.1.0", "cqlib-tianyan==0.1.0"]
+    assert project["dependencies"] == ["cqlib==2.0.0b1", "cqlib-tianyan==0.1.0b1"]
 
 
 def test_framework_extras_are_independent_and_all_is_their_union() -> None:
