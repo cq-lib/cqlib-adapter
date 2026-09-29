@@ -48,8 +48,6 @@ _EXPORTS: Final = {
     "canonical_to_pennylane_result": (".result", "canonical_to_pennylane_result"),
     "PennyLaneExecution": (".execution", "PennyLaneExecution"),
     "TianyanDevice": (".device", "TianyanDevice"),
-    "CqlibSimulatorDevice": (".local_simulator", "CqlibSimulatorDevice"),
-    "PennyLaneStatevectorResult": (".local_simulator", "PennyLaneStatevectorResult"),
 }
 
 
@@ -91,11 +89,9 @@ __all__ = [
     "XY2P",
     "Y2M",
     "Y2P",
-    "CqlibSimulatorDevice",
     "FSim",
     "FSimGate",
     "PennyLaneExecution",
-    "PennyLaneStatevectorResult",
     "RXYGate",
     "TianyanDevice",
     "X2MGate",

@@ -17,7 +17,6 @@ import pennylane as qml
 import pytest
 
 pytest.importorskip("cqlib")
-from cqlib.device import Layout
 from pennylane.tape import QuantumScript
 
 from cqlib_adapter.common import (
@@ -26,7 +25,7 @@ from cqlib_adapter.common import (
     JobState,
     TianyanConnector,
 )
-from cqlib_adapter.pennylane import CqlibSimulatorDevice, TianyanDevice
+from cqlib_adapter.pennylane import TianyanDevice
 from cqlib_adapter.pennylane.testing import ResultSpec, make_pennylane_device
 
 pytestmark = pytest.mark.pennylane
@@ -471,181 +470,8 @@ def test_unavailable_cloud_device_is_rejected_before_submission() -> None:
     assert cloud.calls == []
 
 
-def test_named_wires_are_preserved_at_the_pennylane_boundary() -> None:
-    device = CqlibSimulatorDevice(wires=("first", "second", "third"))
-
-    @qml.qnode(device, shots=20)
-    def circuit() -> dict[str, int]:
-        qml.PauliX("second")
-        qml.PauliX("third")
-        return qml.counts(wires=("first", "second", "third"))
-
-    assert circuit() == {"011": 20}
-
-
-def test_local_cqlib_simulator_grover_qnode_finds_marked_state() -> None:
-    device = CqlibSimulatorDevice(wires=2)
-
-    @qml.qnode(device, shots=64)
-    def grover() -> dict[str, int]:
-        for wire in (0, 1):
-            qml.Hadamard(wire)
-        qml.CZ((0, 1))
-        for wire in (0, 1):
-            qml.Hadamard(wire)
-            qml.PauliX(wire)
-        qml.CZ((0, 1))
-        for wire in (0, 1):
-            qml.PauliX(wire)
-            qml.Hadamard(wire)
-        return qml.counts(wires=(0, 1))
-
-    assert grover() == {"11": 64}
-    assert device.simulator_calls[0][2] == 64
-    assert "CZ Q0 Q1" in device.last_qcis[0]
-
-
-def test_local_cqlib_simulator_supports_pauli_basis_measurements() -> None:
-    device = CqlibSimulatorDevice(wires=1)
-
-    @qml.qnode(device, shots=32)
-    def measure_x() -> tuple[dict[float, int], np.ndarray, np.ndarray, float, float]:
-        qml.Hadamard(0)
-        return (
-            qml.counts(qml.X(0), all_outcomes=True),
-            qml.probs(op=qml.X(0)),
-            qml.sample(qml.X(0)),
-            qml.expval(qml.X(0)),
-            qml.var(qml.X(0)),
-        )
-
-    @qml.qnode(device, shots=32)
-    def measure_y() -> float:
-        qml.Hadamard(0)
-        qml.S(0)
-        return qml.expval(qml.Y(0))
-
-    counts, probabilities, samples, expectation, variance = measure_x()
-    assert counts == {1.0: 32, -1.0: 0}
-    np.testing.assert_array_equal(probabilities, [1.0, 0.0])
-    np.testing.assert_array_equal(samples, [1.0] * 32)
-    assert expectation == pytest.approx(1.0)
-    assert variance == pytest.approx(0.0)
-    assert measure_y() == pytest.approx(1.0)
-
-
-@pytest.mark.xfail(
-    reason=(
-        "cqlib 2.0.0b1 compile() drops trailing single-qubit gates when terminal "
-        "measurements are present: Circuit(2) with ry(0, 0.37), cx(0, 1), ry(1, 0.61), "
-        "measure(0), measure(1) loses the final RZ on Q1 in the compiled output "
-        "(fidelity 0.961 instead of 1.0); the same circuit without measurements "
-        "compiles correctly. Upstream cqlib bug, not an adapter conversion error."
-    ),
-    strict=True,
-)
-def test_local_cqlib_run_statevector_matches_pennylane_amplitudes() -> None:
-    operations = [
-        qml.RY(0.37, wires=0),
-        qml.RZ(-0.29, wires=1),
-        qml.CNOT((0, 1)),
-        qml.RY(0.61, wires=1),
-    ]
-    tape = QuantumScript(operations, [qml.state()])
-    device = CqlibSimulatorDevice(wires=2)
-
-    actual = device.run_statevector(tape)
-    reference = qml.matrix(
-        QuantumScript(operations, []),
-        wire_order=(0, 1),
-    ) @ np.array([1, 0, 0, 0], dtype=complex)
-    fidelity = abs(np.vdot(reference, np.asarray(actual.data))) ** 2
-
-    assert fidelity == pytest.approx(1.0, abs=1e-12)
-    assert actual.wire_order == (0, 1)
-    assert actual.physical_qubits == (0, 1)
-    assert "CZ Q0 Q1" in actual.qcis
-    assert "CX " not in actual.qcis
-    assert not any(line.startswith("M ") for line in actual.qcis.splitlines())
-    assert device.simulator_calls == ()
-
-
-def test_local_cqlib_run_statevector_preserves_named_wire_order() -> None:
-    device = CqlibSimulatorDevice(wires=("first", "second", "third"))
-    tape = QuantumScript(
-        [
-            qml.PauliX("second"),
-            qml.PauliX("third"),
-        ],
-        [],
-    )
-
-    actual = np.asarray(device.run_statevector(tape).data)
-    expected = np.zeros(8, dtype=complex)
-    expected[3] = 1.0
-
-    assert abs(np.vdot(expected, actual)) ** 2 == pytest.approx(
-        1.0,
-        abs=1e-12,
-    )
-
-
-def test_local_cqlib_run_statevector_supports_empty_zero_state() -> None:
-    actual = CqlibSimulatorDevice(wires=2).run_statevector(QuantumScript([], [qml.state()]))
-
-    np.testing.assert_array_equal(actual.data, [1, 0, 0, 0])
-
-
-def test_local_cqlib_run_statevector_restores_reversed_layout() -> None:
-    layout = Layout.from_pairs([(0, 2), (1, 1), (2, 0)], physical_count=3)
-    operations = [
-        qml.PauliX(0),
-        qml.Hadamard(1),
-        qml.RY(0.37, wires=2),
-    ]
-    tape = QuantumScript(operations, [qml.state()])
-    device = CqlibSimulatorDevice(wires=3, initial_layout=layout, seed=47)
-
-    actual = device.run_statevector(tape)
-    reference = qml.matrix(
-        QuantumScript(operations, []),
-        wire_order=(0, 1, 2),
-    ) @ np.array([1, 0, 0, 0, 0, 0, 0, 0], dtype=complex)
-
-    assert abs(np.vdot(reference, np.asarray(actual.data))) ** 2 == pytest.approx(
-        1.0,
-        abs=1e-12,
-    )
-    assert actual.physical_qubits == (2, 1, 0)
-
-
-def test_local_cqlib_run_statevector_restores_layout_after_routing() -> None:
-    layout = Layout.from_pairs([(0, 2), (1, 1), (2, 0)], physical_count=3)
-    operations = [
-        qml.Hadamard(0),
-        qml.RY(0.37, wires=2),
-        qml.CNOT((0, 2)),
-        qml.RZ(-0.29, wires=1),
-    ]
-    tape = QuantumScript(operations, [qml.state()])
-    device = CqlibSimulatorDevice(wires=3, initial_layout=layout, seed=53)
-
-    actual = device.run_statevector(tape)
-    reference = qml.matrix(
-        QuantumScript(operations, []),
-        wire_order=(0, 1, 2),
-    ) @ np.array([1, 0, 0, 0, 0, 0, 0, 0], dtype=complex)
-
-    assert abs(np.vdot(reference, np.asarray(actual.data))) ** 2 == pytest.approx(
-        1.0,
-        abs=1e-12,
-    )
-    assert set(actual.physical_qubits) == {0, 1, 2}
-    assert any(step.name == "route.sabre" and not step.skipped for step in actual.artifact.steps)
-
-
 def test_qnode_preprocess_decomposes_rot_before_cqlib_translation() -> None:
-    device = CqlibSimulatorDevice(wires=1)
+    device, _cloud = make_pennylane_device([ResultSpec({"0": 16}, (0,))], wires=1, size=1)
 
     @qml.qnode(device, shots=16)
     def circuit() -> dict[str, int]:

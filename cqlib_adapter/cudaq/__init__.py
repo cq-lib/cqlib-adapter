@@ -24,8 +24,6 @@ EXTRA_NAME: Final = "cudaq"
 FRAMEWORK_MODULE: Final = "cudaq"
 
 _EXPORTS: Final = {
-    "CqlibSimulator": (".local_simulator", "CqlibSimulator"),
-    "CudaQStatevectorResult": (".local_simulator", "CudaQStatevectorResult"),
     "CudaQJob": (".job", "CudaQJob"),
     "CudaQSampleResult": (".result", "CudaQSampleResult"),
     "TianyanExecutor": (".execution", "TianyanExecutor"),
@@ -78,10 +76,8 @@ def __dir__() -> list[str]:
 __all__ = [
     "EXTRA_NAME",
     "FRAMEWORK_MODULE",
-    "CqlibSimulator",
     "CudaQJob",
     "CudaQSampleResult",
-    "CudaQStatevectorResult",
     "TianyanExecutor",
     "TianyanTarget",
     "canonical_to_cudaq_result",

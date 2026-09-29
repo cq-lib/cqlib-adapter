@@ -16,12 +16,10 @@ from importlib.machinery import EXTENSION_SUFFIXES
 from pathlib import Path
 
 import cirq
-import numpy as np
 import pytest
 from cqlib import Circuit
 
 from cqlib_adapter.cirq import (
-    CqlibSimulatorSampler,
     cirq_to_cqlib,
     compile_cirq_circuit,
 )
@@ -65,22 +63,3 @@ def test_cirq_compiler_calls_real_cqlib_compile_and_qcis() -> None:
     assert "M Q0" in artifact.qcis
     assert "M Q1" in artifact.qcis
     assert artifact.steps
-
-
-def test_cirq_011_runs_through_real_cqlib_statevector_and_resultdict() -> None:
-    sampler = CqlibSimulatorSampler(3)
-    qubits = cirq.LineQubit.range(3)
-    circuit = cirq.Circuit(
-        cirq.X(qubits[1]),
-        cirq.X(qubits[2]),
-        cirq.measure(qubits[0], key="left"),
-        cirq.measure(qubits[1], qubits[2], key="pair"),
-    )
-
-    result = sampler.run(circuit, repetitions=32)
-
-    assert result.histogram(key="left") == {0: 32}
-    assert result.histogram(key="pair") == {3: 32}
-    np.testing.assert_array_equal(result.measurements["pair"], [[True, True]] * 32)
-    assert sampler.simulator_calls
-    assert sampler.last_task_ids == ("local-cirq-task-1",)

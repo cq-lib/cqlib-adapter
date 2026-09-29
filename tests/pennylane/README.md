@@ -7,7 +7,6 @@ The suite targets PennyLane `>=0.44,<1` and covers:
 - PennyLane wire labels, measurement metadata and canonical bit-order restoration;
 - counts, probabilities, samples, multiple measurements and `all_outcomes`;
 - QNode execution through a mock Tianyan transport using real cqlib Device/ExecutionResult objects;
-- local Grover execution through the real cqlib Statevector simulator;
 - finite shots, shot-vector rejection, unavailable devices, capacity and malformed requests.
 
 Run one layer at a time:

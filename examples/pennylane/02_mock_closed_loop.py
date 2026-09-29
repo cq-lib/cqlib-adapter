@@ -12,8 +12,9 @@
 
 """No-network PennyLane Device/result contract test with preset counts.
 
-This mock does not simulate the submitted circuit. Use the local cqlib examples
-for quantum-semantic validation.
+This mock does not simulate the submitted circuit; it returns the preset
+counts verbatim. It is the only offline execution path, intended for
+transport/job/result contract validation.
 """
 
 import numpy as np

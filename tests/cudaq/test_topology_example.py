@@ -22,7 +22,8 @@ pytest.importorskip("cqlib")
 from cqlib.device import Layout  # noqa: E402
 
 from cqlib_adapter.common import CompilationOptions  # noqa: E402
-from cqlib_adapter.cudaq import CqlibSimulator, compile_cudaq_kernel  # noqa: E402
+from cqlib_adapter.cudaq import compile_cudaq_kernel  # noqa: E402
+from cqlib_adapter.cudaq.testing import make_cudaq_executor  # noqa: E402
 
 pytestmark = pytest.mark.cudaq
 
@@ -34,8 +35,8 @@ def test_topology_example_maps_cudaq_qubits_to_one_physical_path() -> None:
     select_path = source["select_three_qubit_path"]
     assert_mapping = source["assert_compiled_mapping"]
     kernel = source["topology_kernel"]
-    simulator = CqlibSimulator(4, seed=43)
-    device = simulator.device
+    executor, _cloud = make_cudaq_executor([], size=4)
+    device = executor.device
     path = select_path(device)
     layout = Layout.from_pairs(
         [(logical, physical) for logical, physical in enumerate(path)],

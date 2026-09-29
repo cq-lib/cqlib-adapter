@@ -4,7 +4,7 @@
 
 `cqlib-adapter` connects Qiskit, Cirq, PennyLane, and CUDA-Q programs to the current `cqlib`, `cqlib-tianyan`, and Tianyan Quantum Cloud platform.
 
-The project provides shared compilation, QCIS, device, job, and canonical-result infrastructure, plus Qiskit, Cirq, PennyLane, and CUDA-Q adapters. Each adapter has conversion, local-simulator, mock-cloud, and explicitly opt-in real-device coverage. See [docs/testing.md](docs/testing.md) for test commands and [docs/cudaq-testing.md](docs/cudaq-testing.md) for CUDA-Q validation.
+The project provides shared compilation, QCIS, device, job, and canonical-result infrastructure, plus Qiskit, Cirq, PennyLane, and CUDA-Q adapters. Each adapter has conversion, mock-cloud, and explicitly opt-in real-device coverage. See [docs/testing.md](docs/testing.md) for test commands and [docs/cudaq-testing.md](docs/cudaq-testing.md) for CUDA-Q validation.
 
 ## Requirements
 
@@ -30,14 +30,14 @@ CUDA-Q supports Linux and Apple Silicon macOS; use WSL2 on Windows. On Windows, 
 
 Install `cqlib`, `cqlib-tianyan`, and the required framework extra first; pip pulls the native bindings from PyPI automatically when the adapter is installed. Run these commands from the repository root. They neither read an API key nor create a cloud task.
 
-| Adapter | Conversion | Local semantic execution |
+| Adapter | Conversion | Mock closed loop |
 |---|---|---|
-| Qiskit | `python examples/qiskit/01_conversion.py` | `python examples/qiskit/04_grover_simulator.py` |
-| PennyLane | `python examples/pennylane/01_conversion.py` | `python examples/pennylane/04_grover_simulator.py` |
-| Cirq | `python examples/cirq/01_conversion.py` | `python examples/cirq/04_grover_simulator.py` |
-| CUDA-Q (Linux/WSL2) | `python examples/cudaq/01_conversion.py` | `python examples/cudaq/04_grover_simulator.py` |
+| Qiskit | `python examples/qiskit/01_conversion.py` | `python examples/qiskit/02_mock_closed_loop.py` |
+| PennyLane | `python examples/pennylane/01_conversion.py` | `python examples/pennylane/02_mock_closed_loop.py` |
+| Cirq | `python examples/cirq/01_conversion.py` | `python examples/cirq/02_mock_closed_loop.py` |
+| CUDA-Q (Linux/WSL2) | `python examples/cudaq/01_conversion.py` | `python examples/cudaq/02_mock_closed_loop.py` |
 
-`01_conversion.py` shows the smallest framework-to-cqlib/QCIS path. `04_grover_simulator.py` compares the framework reference with the real local cqlib simulator and prints `PASS` only when their semantics agree. Bit order, statevector scaling, basis measurements, mock-cloud, and real-device examples are described in [examples/README.md](examples/README.md) and the framework-specific example directories. `03_tianyan_cloud.py` and `031_tianyan_topology.py` create external tasks only after explicit operator authorization and credentials are provided.
+`01_conversion.py` shows the smallest framework-to-cqlib/QCIS path. `02_mock_closed_loop.py` exercises the full Backend/Sampler/Device submission path against a mock cloud transport with preconfigured counts; it validates transport, task, and result-shape contracts rather than quantum semantics. Real-device examples are described in [examples/README.md](examples/README.md) and the framework-specific example directories. `03_tianyan_cloud.py` and `031_tianyan_topology.py` create external tasks only after explicit operator authorization and credentials are provided.
 
 ### CUDA-Q direct conversion
 
@@ -45,13 +45,7 @@ The production CUDA-Q path reads a kernel or builder's Quake MLIR directly and c
 
 ### PennyLane basis measurements
 
-For finite shots, the PennyLane adapter supports single-wire Pauli X/Y/Z observables with `qml.counts`, `qml.sample`, `qml.expval`, and `qml.var`. It inserts H for X, S† then H for Y, and no rotation for Z before measurement. Canonical bits are converted to PennyLane's ±1 eigenvalues, and incompatible bases on one wire raise a clear error.
-
-```bash
-python examples/pennylane/08_basis_measurement.py
-```
-
-This example prepares known +1 Pauli X/Y eigenstates and validates basis rotation, cqlib/QCIS execution, and eigenvalue results. Unit tests cover Pauli Z and the `sample`/`expval`/`var` boundary cases.
+For finite shots, the PennyLane adapter supports single-wire Pauli X/Y/Z observables with `qml.counts`, `qml.sample`, `qml.expval`, and `qml.var`. It inserts H for X, S† then H for Y, and no rotation for Z before measurement. Canonical bits are converted to PennyLane's ±1 eigenvalues, and incompatible bases on one wire raise a clear error. Unit tests cover the basis rotations, eigenvalue conversion, and the `sample`/`expval`/`var` boundary cases.
 
 ### PennyLane authentication and run options
 

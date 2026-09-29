@@ -19,11 +19,10 @@ pytest.importorskip("cqlib")
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 from qiskit.providers import JobStatus
 from qiskit.providers.exceptions import JobError
-from qiskit.quantum_info import Statevector, state_fidelity
 from qiskit.result import Result
 
 from cqlib_adapter.common import AdapterConversionError, AdapterDeviceError
-from cqlib_adapter.qiskit import CqlibSimulatorBackend, TianyanJob, TianyanSampler
+from cqlib_adapter.qiskit import TianyanJob, TianyanSampler
 from cqlib_adapter.qiskit.testing import ResultSpec, make_qiskit_backend
 
 pytestmark = pytest.mark.qiskit
@@ -222,92 +221,3 @@ def test_unavailable_device_is_rejected_before_cloud_submission() -> None:
     with pytest.raises(AdapterDeviceError, match="not available"):
         backend.run(bell_circuit(), shots=1)
     assert cloud.calls == []
-
-
-def test_local_cqlib_simulator_backend_executes_and_maps_partial_measurement() -> None:
-    backend = CqlibSimulatorBackend(2)
-    circuit = QuantumCircuit(2, 1, name="local-dj")
-    circuit.x(1)
-    circuit.h([0, 1])
-    circuit.cx(0, 1)
-    circuit.h(0)
-    circuit.measure(0, 0)
-
-    job = backend.run(circuit, shots=64, seed=23)
-    result = job.result(timeout=2, poll_interval=0.01)
-
-    assert result.get_counts() == {"1": 64}
-    assert result.results[0].header["name"] == "local-dj"
-    assert job.qcis[0].endswith("M Q0")
-    assert backend.simulator_calls[0][2] == 64
-
-
-def test_local_cqlib_simulator_supports_explicit_x_and_y_basis_measurement() -> None:
-    backend = CqlibSimulatorBackend(2)
-    circuit = QuantumCircuit(2, 2)
-    circuit.h(0)  # Prepare |+>.
-    circuit.h(1)
-    circuit.s(1)  # Prepare |+i>.
-    circuit.h(0)  # X-basis measurement rotation.
-    circuit.sdg(1)
-    circuit.h(1)  # Y-basis measurement rotation.
-    circuit.measure([0, 1], [0, 1])
-
-    result = backend.run(circuit, shots=32, seed=29).result()
-
-    assert result.get_counts() == {"00": 32}
-
-
-def test_local_cqlib_run_statevector_preserves_amplitudes_and_phase() -> None:
-    backend = CqlibSimulatorBackend(2)
-    circuit = QuantumCircuit(2, 2)
-    circuit.ry(0.37, 0)
-    circuit.rz(-0.29, 1)
-    circuit.cx(0, 1)
-    circuit.ry(0.61, 1)
-    circuit.measure([0, 1], [0, 1])
-
-    actual = backend.run_statevector(circuit, seed=17)
-    reference = Statevector.from_instruction(circuit.remove_final_measurements(inplace=False))
-
-    assert state_fidelity(reference, Statevector(list(actual.data))) == pytest.approx(
-        1.0, abs=1e-12
-    )
-    assert actual.num_qubits == 2
-    assert actual.physical_qubits == (0, 1)
-    assert "CZ Q0 Q1" in actual.qcis
-    assert "CX " not in actual.qcis
-    assert not any(line.startswith("M ") for line in actual.qcis.splitlines())
-    assert backend.simulator_calls == ()
-
-
-@pytest.mark.parametrize("operation", ["measure", "reset"])
-def test_local_cqlib_run_statevector_rejects_nonunitary_middle_operation(
-    operation: str,
-) -> None:
-    backend = CqlibSimulatorBackend(1)
-    circuit = QuantumCircuit(1, 1)
-    circuit.h(0)
-    if operation == "measure":
-        circuit.measure(0, 0)
-    else:
-        circuit.reset(0)
-    circuit.h(0)
-
-    with pytest.raises(
-        AdapterConversionError,
-        match="mid-circuit measurement or reset",
-    ):
-        backend.run_statevector(circuit)
-
-
-def test_local_cqlib_run_statevector_rejects_width_mismatch() -> None:
-    backend = CqlibSimulatorBackend(2)
-
-    with pytest.raises(ValueError, match="width must equal"):
-        backend.run_statevector(QuantumCircuit(1))
-
-
-def test_local_cqlib_simulator_backend_rejects_invalid_size() -> None:
-    with pytest.raises(ValueError, match="num_qubits must be positive"):
-        CqlibSimulatorBackend(0)

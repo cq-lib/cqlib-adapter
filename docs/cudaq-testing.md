@@ -16,7 +16,7 @@ CUDA-Q kernel or PyKernel builder
   -> cqlib.Circuit
   -> cqlib compile/layout/routing
   -> QCIS
-  -> local cqlib simulator or Tianyan task
+  -> mock transport or Tianyan task
   -> CanonicalResult
   -> CudaQSampleResult
 ```
@@ -64,19 +64,13 @@ python examples/cudaq/01_conversion.py
 
 # Result API and canonical 110 -> CUDA-Q 011 bit-order projection
 python -m pytest tests/cudaq/test_result.py -q
-python examples/cudaq/05_bit_order_011.py
 
 # Tianyan target/device information and diagnostic gate mapping
 python -m pytest tests/cudaq/test_target.py tests/cudaq/test_gates.py -q
 
-# Sync/async jobs, IDs, status, wait, mock transport and local simulator
+# Sync/async jobs, IDs, status, wait and mock transport
 python -m pytest tests/cudaq/test_execution.py -q
 python examples/cudaq/02_mock_closed_loop.py
-
-# Algorithm semantics, exact-state scaling and native basis measurements
-python examples/cudaq/04_grover_simulator.py
-python examples/cudaq/07_scaling_statevector.py --smoke
-python examples/cudaq/08_basis_measurement.py
 
 # Native integration and the complete offline CUDA-Q suite
 python -m pytest tests/integration/test_cudaq_cqlib_runtime.py -q
@@ -84,19 +78,8 @@ python -m pytest tests/cudaq tests/integration/test_cudaq_cqlib_runtime.py -q
 ```
 
 The conversion tests monkeypatch `cudaq.translate` to fail and still require
-direct conversion to succeed. Key example results are `auto_measure_all=True`,
-mock task ID `mock-cudaq-task-1`, local task ID `local-cudaq-task-1`, Grover
-counts `{'11': shots}`, bit-order counts `{'011': shots}`, and basis counts
-`{'00': shots}`.
-
-The full scaling matrix is intentionally heavier:
-
-```bash
-python examples/cudaq/07_scaling_statevector.py
-```
-
-It compares CUDA-Q and cqlib statevectors up to global phase and writes its
-generated report under ignored `test-output/`.
+direct conversion to succeed. Key example results are `auto_measure_all=True`
+and mock task ID `mock-cudaq-task-1`.
 
 ## Optional real-device tests
 
