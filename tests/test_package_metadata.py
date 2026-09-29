@@ -90,7 +90,7 @@ def test_dev_extra_contains_the_windows_supported_framework_test_surface() -> No
 def test_dev_convenience_files_match_the_windows_framework_surface() -> None:
     expected = {
         "qiskit>=2.1,<3",
-        "cirq-core>=1.4,<2",
+        "cirq-core>=1.7,<2",
         "pennylane>=0.44,<1",
     }
     requirements = set((ROOT / "requirements-dev.txt").read_text(encoding="utf-8").splitlines())

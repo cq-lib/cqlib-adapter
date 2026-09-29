@@ -1,6 +1,6 @@
 # Cirq examples
 
-These examples target `cirq-core>=1.4,<2` and were verified with Cirq `1.7.0`.
+These examples target `cirq-core>=1.7,<2` and were verified with Cirq `1.7.0`.
 Run them from the repository root.
 
 - `01_conversion.py`: `cirq.Circuit -> cqlib.Circuit -> native QCIS`, including measurement-key metadata.

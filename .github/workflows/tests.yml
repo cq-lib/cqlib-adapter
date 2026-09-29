@@ -49,7 +49,7 @@ jobs:
             package: qiskit
             extra: ""
           - framework: cirq
-            package: cirq-core==1.4.0
+            package: cirq-core==1.7.0
             extra: ""
           - framework: cirq
             package: cirq-core
