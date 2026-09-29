@@ -122,15 +122,14 @@ def test_windows_coverage_config_excludes_only_the_unavailable_cudaq_surface() -
 def test_docs_and_ci_exercise_the_platform_specific_coverage_commands() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     testing = (ROOT / "docs" / "testing.md").read_text(encoding="utf-8")
-    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-    cudaq_ci = (ROOT / ".github" / "workflows" / "cudaq.yml").read_text(encoding="utf-8")
+    tests_ci = (ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
 
     windows_coverage = "--cov-config=coverage-windows.ini --cov-report=term-missing"
     linux_coverage = "--cov=cqlib_adapter --cov-report=term-missing"
     assert windows_coverage in readme
     assert windows_coverage in testing
-    assert windows_coverage in ci
+    assert windows_coverage in tests_ci
     assert linux_coverage in readme
     assert linux_coverage in testing
-    assert linux_coverage in cudaq_ci
-    assert 'python -m pip install -e ".[dev,cudaq]"' in cudaq_ci
+    assert linux_coverage in tests_ci
+    assert 'python -m pip install -e ".[dev,cudaq]"' in tests_ci

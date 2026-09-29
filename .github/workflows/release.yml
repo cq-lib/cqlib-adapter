@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Check tag matches package version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python -m pip install --upgrade pip packaging
+          python -m pip install --no-deps -e .
+          python -c "import os; from packaging.version import Version; import cqlib_adapter; tag = os.environ['RELEASE_TAG']; assert Version(tag) == Version(cqlib_adapter.__version__), f'tag {tag} does not match package version {cqlib_adapter.__version__}'"
+
+  lint:
+    needs: version
+    uses: ./.github/workflows/lint.yml
+
+  tests:
+    needs: version
+    uses: ./.github/workflows/tests.yml
+
+  build:
+    needs: [lint, tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Build distributions
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check dist/*
+      - name: Verify minimal source distribution boundary
+        run: |
+          tar -tzf dist/*.tar.gz > sdist-contents.txt
+          grep -q '/pyproject.toml$' sdist-contents.txt
+          grep -q '/cqlib_adapter/__init__.py$' sdist-contents.txt
+          grep -q '/cqlib_adapter/py.typed$' sdist-contents.txt
+          grep -q '/LICENSE$' sdist-contents.txt
+          ! grep -Eq '/(docs|examples)/' sdist-contents.txt
+          ! grep -Eq '/(\.pytest_cache|\.mypy_cache|\.ruff_cache|build|dist)/' sdist-contents.txt
+      - name: Install and smoke-test the minimal source distribution
+        run: |
+          mkdir sdist-smoke
+          tar -xzf dist/*.tar.gz -C sdist-smoke
+          source_dir="$(find sdist-smoke -mindepth 1 -maxdepth 1 -type d -name 'cqlib_adapter-*' -print -quit)"
+          test -n "$source_dir"
+          python -m venv sdist-venv
+          sdist-venv/bin/python -m pip install --upgrade pip
+          sdist-venv/bin/python -m pip install --no-deps "$source_dir"
+          sdist-venv/bin/python -c "import cqlib_adapter; print(cqlib_adapter.__version__)"
+      - name: Smoke-test wheel
+        run: |
+          python -m pip install --no-deps dist/*.whl
+          python -c "import cqlib_adapter; print(cqlib_adapter.__version__)"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: distributions
+          path: dist/*
