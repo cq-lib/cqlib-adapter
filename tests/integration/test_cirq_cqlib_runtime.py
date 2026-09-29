@@ -58,9 +58,7 @@ def test_cirq_compiler_calls_real_cqlib_compile_and_qcis() -> None:
     qubits = cirq.LineQubit.range(2)
     circuit = cirq.Circuit(cirq.H(qubits[0]), cirq.CNOT(*qubits), cirq.measure(*qubits, key="m"))
 
-    artifact = compile_cirq_circuit(
-        circuit, options=CompilationOptions(target_basis=NATIVE_BASIS, seed=29)
-    )
+    artifact = compile_cirq_circuit(circuit, options=CompilationOptions(target_basis=NATIVE_BASIS))
 
     assert artifact.circuit.validate() is None
     assert "CZ Q0 Q1" in artifact.qcis

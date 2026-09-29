@@ -182,10 +182,10 @@ class FakeHandle:
 
     def wait(
         self,
-        timeout_secs: float | None = None,
-        poll_interval_secs: float = 5.0,
+        timeout: float | None = None,
+        poll_interval: float = 5.0,
     ) -> list[FakeExecutionResult]:
-        self.wait_calls.append((timeout_secs, poll_interval_secs))
+        self.wait_calls.append((timeout, poll_interval))
         if self.wait_error is not None:
             raise self.wait_error
         return list(self.wait_results)

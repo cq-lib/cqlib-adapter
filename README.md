@@ -8,10 +8,8 @@ The project provides shared compilation, QCIS, device, job, and canonical-result
 
 ## Requirements
 
-- Python 3.11 or later; CI covers Python 3.11 through 3.13.
-- The current `cqlib==0.1.0` and `cqlib-tianyan==0.1.0` native bindings.
-
-The higher-numbered `cqlib 1.x` packages published on PyPI belong to a different legacy product line. They cannot replace the `0.1.0` API required by this project.
+- Python 3.11 or later; CI tests the floor and latest (3.11 and 3.14) on Linux, Windows, and macOS.
+- The current `cqlib` and `cqlib-tianyan` native bindings, installed automatically from PyPI as project dependencies; the compatible ranges are declared in [pyproject.toml](pyproject.toml).
 
 ## Install an adapter
 
@@ -30,7 +28,7 @@ CUDA-Q supports Linux and Apple Silicon macOS; use WSL2 on Windows. On Windows, 
 
 ## Minimal offline examples
 
-Install local `cqlib==0.1.0`, `cqlib-tianyan==0.1.0`, and the required framework extra first. Run these commands from the repository root. They neither read an API key nor create a cloud task.
+Install `cqlib`, `cqlib-tianyan`, and the required framework extra first; pip pulls the native bindings from PyPI automatically when the adapter is installed. Run these commands from the repository root. They neither read an API key nor create a cloud task.
 
 | Adapter | Conversion | Local semantic execution |
 |---|---|---|
@@ -81,44 +79,21 @@ conda env create -f environment-dev.yml
 conda activate cqlib-adapter-dev
 ```
 
-`environment-dev.yml` creates the Python, optional-framework, and quality-tool environment, but does not install the native `cqlib` and `cqlib-tianyan` bindings required by integration tests. Build those bindings from sibling checkouts at the exact approved revisions recorded in [pyproject.toml](pyproject.toml), rather than either repository's default branch. The repositories should share a parent directory:
+`environment-dev.yml` creates the Python, optional-framework, and quality-tool environment. The native `cqlib` and `cqlib-tianyan` bindings are published on PyPI with prebuilt wheels for the supported platforms, so no source build is required.
 
-```text
-quantum-workspace/
-├── cqlib-adapter/
-├── cqlib/
-└── cqlib-tianyan/
-```
-
-Clone and build the approved revisions if they are not already present:
+Install the adapter in editable mode; pip pulls the `cqlib` and `cqlib-tianyan` dependencies from PyPI:
 
 ```bash
-git clone https://github.com/cq-lib/cqlib.git ../cqlib
-git -C ../cqlib checkout 21f4814ce2cc7798b7102618d5a7617b47cd75b7
-git clone https://github.com/cq-lib/cqlib-tianyan.git ../cqlib-tianyan
-git -C ../cqlib-tianyan checkout ea3e88bb367e575f33ba1f9eca25aa283b77bd3c
+python -m pip install -e ".[dev]"
 ```
 
-Build and install each binding without modifying Rust sources:
-
-```bash
-cd ../cqlib/crates/binding-python
-maturin develop --release
-cd ../../../cqlib-tianyan/crates/binding-python
-maturin develop --release
-```
-
-Confirm that local `0.1.0` native extensions are loaded:
+Confirm that the PyPI native extensions are loaded:
 
 ```bash
 python -c "from importlib.metadata import version; import cqlib._native, cqlib_tianyan._cqlib_tianyan; print(version('cqlib'), cqlib._native.__file__); print(version('cqlib-tianyan'), cqlib_tianyan._cqlib_tianyan.__file__)"
 ```
 
-Install the adapter after the native bindings are available:
-
-```bash
-python -m pip install -e ".[dev]"
-```
+The reported versions must satisfy the compatible ranges declared in [pyproject.toml](pyproject.toml).
 
 The `dev` extra is the documented Windows development/test surface: it includes quality tools plus Qiskit, Cirq, and PennyLane. Linux/WSL uses the same extra with CUDA-Q added explicitly. This keeps declared dependencies, the environment file, documentation, and CI commands aligned:
 

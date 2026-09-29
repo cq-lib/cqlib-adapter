@@ -84,11 +84,11 @@ def test_compile_pennylane_circuit_uses_real_cqlib_native_lowering() -> None:
 
     artifact = compile_pennylane_circuit(
         tape,
-        options=CompilationOptions(target_basis=NATIVE_BASIS, seed=13),
+        options=CompilationOptions(target_basis=NATIVE_BASIS),
     )
 
     assert "CZ Q0 Q1" in artifact.qcis
-    assert artifact.qcis.count("M Q") == 2
+    assert sum(line.startswith("M ") for line in artifact.qcis.splitlines()) == 2
     assert [(item.physical_qubit, item.classical_bit) for item in artifact.measurements] == [
         (0, 0),
         (1, 1),

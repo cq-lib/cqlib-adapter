@@ -1,6 +1,6 @@
 # PennyLane tests
 
-The suite targets PennyLane `>=0.45,<0.46` and covers:
+The suite targets PennyLane `>=0.44,<1` and covers:
 
 - QCIS-native Operation matrices, unitarity and adjoints;
 - QuantumScript/cqlib conversion, native compilation, QCIS and reverse conversion;

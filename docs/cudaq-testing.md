@@ -2,8 +2,9 @@
 
 ## Supported environment
 
-The CUDA-Q adapter targets `cudaq>=0.15,<0.16` on Linux. The verified
-environment uses Python 3.12 and `qpp-cpu`. Native Windows is unsupported by
+The CUDA-Q adapter targets `cudaq>=0.15,<0.17` on Linux. Continuous
+integration verifies Python 3.11 and 3.13 (CUDA-Q's supported range) with
+`qpp-cpu`. Native Windows is unsupported by
 CUDA-Q; Windows users should run these checks in WSL2.
 
 The production path is:

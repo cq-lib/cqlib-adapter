@@ -1,9 +1,8 @@
 # pyproject.toml [project.optional-dependencies].dev is authoritative.
 # This file is a convenience for environments that cannot install extras yet.
-qiskit>=2.5,<3
-cirq-core>=1.7,<2
-pennylane>=0.45,<0.46
-maturin>=1.11,<2
+qiskit>=2.1,<3
+cirq-core>=1.4,<2
+pennylane>=0.44,<1
 build>=1.2
 hypothesis>=6.100
 mypy>=1.15

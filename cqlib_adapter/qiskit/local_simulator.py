@@ -104,10 +104,10 @@ class _LocalTaskHandle:
 
     def wait(
         self,
-        timeout_secs: float | None = None,
-        poll_interval_secs: float = 5.0,
+        timeout: float | None = None,
+        poll_interval: float = 5.0,
     ) -> list[ExecutionResult]:
-        del timeout_secs, poll_interval_secs
+        del timeout, poll_interval
         return [self._result]
 
 

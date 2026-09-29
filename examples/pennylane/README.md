@@ -1,6 +1,6 @@
 # PennyLane examples
 
-These examples target PennyLane `>=0.45,<0.46` and run from the repository root.
+These examples target PennyLane `>=0.44,<1` and run from the repository root.
 
 - `01_conversion.py`: `QuantumScript -> cqlib Circuit -> native QCIS`, no network.
 - `02_mock_closed_loop.py`: no-network QNode/Device/result contract test with

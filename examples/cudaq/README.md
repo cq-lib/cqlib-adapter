@@ -1,6 +1,6 @@
 # CUDA-Q examples
 
-These examples target `cudaq>=0.15,<0.16` on Linux. Windows users should run
+These examples target `cudaq>=0.15,<0.17` on Linux. Windows users should run
 them in WSL2. Run every command from the repository root.
 
 - `01_conversion.py`: CUDA-Q kernel -> Quake MLIR -> cqlib Circuit -> native

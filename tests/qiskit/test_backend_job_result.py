@@ -100,7 +100,7 @@ def test_backend_mock_closed_loop_returns_standard_qiskit_result() -> None:
     assert job.task_ids == ("mock-task-1",)
     assert job.status() is JobStatus.QUEUED
     assert "CZ Q0 Q1" in job.qcis[0]
-    assert job.qcis[0].count("M Q") == 2
+    assert sum(line.startswith("M ") for line in job.qcis[0].splitlines()) == 2
     assert cloud.calls == [("auto", [job.qcis[0]], 100)]
 
     result = job.result(timeout=2, poll_interval=0.01)

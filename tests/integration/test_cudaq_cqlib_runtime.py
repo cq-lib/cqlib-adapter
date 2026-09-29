@@ -67,11 +67,11 @@ def test_cudaq_converter_returns_rust_backed_cqlib_circuit() -> None:
 def test_cudaq_compiler_calls_real_cqlib_compile_and_qcis() -> None:
     artifact = compile_cudaq_kernel(
         bell_without_measurement,
-        options=CompilationOptions(target_basis=NATIVE_BASIS, seed=29),
+        options=CompilationOptions(target_basis=NATIVE_BASIS),
     )
 
     assert "CZ Q0 Q1" in artifact.qcis
-    assert artifact.qcis.count("M Q") == 2
+    assert sum(line.startswith("M ") for line in artifact.qcis.splitlines()) == 2
     assert len(artifact.measurements) == 2
 
 

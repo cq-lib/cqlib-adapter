@@ -13,14 +13,16 @@
 from __future__ import annotations
 
 from importlib.machinery import EXTENSION_SUFFIXES
-from importlib.metadata import version
+from importlib.metadata import requires, version
 from pathlib import Path
 
+import numpy as np
 import pytest
-from cqlib import Circuit, Qubit
+from cqlib import Circuit, Qubit, Statevector
 from cqlib.circuit import Instruction, StandardGate
 from cqlib.compile.resource import ResourcePolicy
 from cqlib.device import Device, ExecutionResult, Layout, Topology
+from packaging.requirements import Requirement
 
 from cqlib_adapter.common import (
     AdapterCompileError,
@@ -73,6 +75,19 @@ def _operation_name(operation: object) -> str:
     return name
 
 
+def _unitary_matrix(circuit: Circuit, num_qubits: int) -> np.ndarray:
+    columns = []
+    for basis_state in range(2**num_qubits):
+        prepared = Circuit(num_qubits)
+        for qubit in range(num_qubits):
+            if basis_state & (1 << qubit):
+                prepared.x(qubit)
+        for operation in circuit.operations:
+            prepared.append(operation)
+        columns.append(Statevector.from_circuit(prepared).data)
+    return np.array(columns).T
+
+
 class _NativeBackend:
     def __init__(self, config: Device, *, name: str = "native-device") -> None:
         self.name = name
@@ -103,12 +118,12 @@ class _NativeHandle:
 
     def wait(
         self,
-        timeout_secs: float | None = None,
-        poll_interval_secs: float = 5.0,
+        timeout: float | None = None,
+        poll_interval: float = 5.0,
     ) -> list[ExecutionResult]:
-        assert timeout_secs is not None
-        assert timeout_secs > 0
-        assert poll_interval_secs > 0
+        assert timeout is not None
+        assert timeout > 0
+        assert poll_interval > 0
         return list(self._results)
 
 
@@ -152,7 +167,12 @@ def test_uses_local_rust_compiled_cqlib_extension() -> None:
     import cqlib
     import cqlib._native as native
 
-    assert version("cqlib") == "2.0.0b1"
+    requirement = next(
+        requirement
+        for requirement in (Requirement(item) for item in requires("cqlib-adapter") or [])
+        if requirement.name == "cqlib"
+    )
+    assert requirement.specifier.contains(version("cqlib"), prereleases=True)
     assert Path(cqlib.__file__).resolve().is_file()
     native_path = str(Path(native.__file__).resolve())
     assert any(native_path.endswith(suffix) for suffix in EXTENSION_SUFFIXES)
@@ -208,11 +228,10 @@ def test_compiler_lowers_logical_bell_and_binds_real_measure_bit_operations() ->
         options=CompilationOptions(
             mode=CompilationMode.ENHANCED,
             target_basis=_native_basis(),
-            seed=17,
         ),
     )
 
-    assert artifact.qcis.count("M Q") == 2
+    assert sum(line.startswith("M ") for line in artifact.qcis.splitlines()) == 2
     assert [item.physical_qubit for item in artifact.measurements] == [0, 1]
     assert [item.classical_bit for item in artifact.measurements] == [0, 1]
     assert artifact.circuit.validate() is None
@@ -290,7 +309,7 @@ def test_real_directives_do_not_require_direct_coupling_and_preserve_measurement
         (compiled_qubits[0], 0),
         (compiled_qubits[1], 1),
     ]
-    assert measurement_artifact.qcis.count("M Q") == 1
+    assert sum(line.startswith("M ") for line in measurement_artifact.qcis.splitlines()) == 1
 
 
 def test_real_device_normalization_preserves_sparse_ids_invalid_qubits_and_instructions() -> None:
@@ -456,3 +475,46 @@ def test_result_converter_accepts_real_cqlib_execution_result() -> None:
     assert converted.counts == {"01": 60, "10": 40}
     assert converted.probabilities == pytest.approx({"01": 0.6, "10": 0.4})
     assert len(converted.samples) == 100
+
+
+def test_compile_with_terminal_measurements_differs_only_by_output_phase() -> None:
+    # cqlib's measurement-aware optimization (propagate_frames) drops
+    # Z-diagonal phases on measured qubits, so compile guarantees
+    # measurement-statistics equivalence rather than unitary equivalence:
+    # the stripped compiled unitary V satisfies V = D @ U with D a diagonal
+    # unitary. Assert exactly that, via M = V @ U.conj().T being diagonal
+    # with unit-modulus entries.
+    unitary_only = Circuit(2)
+    unitary_only.ry(0, 0.37)
+    unitary_only.cx(0, 1)
+    unitary_only.ry(1, 0.61)
+
+    measured = Circuit(2)
+    measured.ry(0, 0.37)
+    measured.cx(0, 1)
+    measured.ry(1, 0.61)
+    measured.measure(0)
+    measured.measure(1)
+
+    runtime = DefaultCqlibRuntime()
+    compiled = runtime.compile(
+        measured,
+        mode=runtime.normal_mode(),
+        target_basis=[name for name in _native_basis() if name != "GPHASE"],
+        device=None,
+        initial_layout=None,
+        resource_policy=None,
+        seed=None,
+    )
+
+    stripped = Circuit(2)
+    for operation in compiled.circuit.operations:
+        if _operation_name(operation) == "MEASURE":
+            continue
+        stripped.append(operation)
+
+    source = _unitary_matrix(unitary_only, 2)
+    product = _unitary_matrix(stripped, 2) @ source.conj().T
+    off_diagonal = product - np.diag(np.diag(product))
+    assert np.max(np.abs(off_diagonal)) < 1e-12
+    assert np.allclose(np.abs(np.diag(product)), 1.0, atol=1e-12)

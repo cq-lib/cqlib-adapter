@@ -1,6 +1,6 @@
 # Cirq tests
 
-The suite uses Cirq `1.7.0` and the real Rust-compiled `cqlib==0.1.0` extension.
+The suite uses Cirq `1.7.0` and the real Rust-compiled `cqlib` extension installed from PyPI.
 
 - `test_gates.py`: QCIS gate matrices, inverses, parameters, factory errors and GPHASE.
 - `test_converter.py`: Circuit conversion, measurement keys/invert masks, native lowering, layout, topology routing, reverse conversion and invalid circuits.

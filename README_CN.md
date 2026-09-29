@@ -8,9 +8,8 @@
 
 ## 运行要求
 
-- Python 3.11 及以上；CI 覆盖 Python 3.11–3.13。
-- 本项目需要新版 `cqlib==0.1.0` 与 `cqlib-tianyan==0.1.0`。
-- PyPI 中版本号更高的 `cqlib 1.x` 属于旧产品线，不能替代本项目要求的 `0.1.0` API。
+- Python 3.11 及以上；CI 在 Linux、Windows、macOS 上测试下限与最新版本（3.11 和 3.14）。
+- 本项目需要新版 `cqlib` 与 `cqlib-tianyan` 原生绑定，两者已发布到 PyPI，安装适配器时作为项目依赖自动拉取；兼容区间以 [pyproject.toml](pyproject.toml) 的依赖声明为准。
 
 ## 按框架安装
 
@@ -26,7 +25,7 @@ pip install "cqlib-adapter[all]"
 
 ## 最小离线示例
 
-先安装本地 `cqlib==0.1.0`、`cqlib-tianyan==0.1.0` 和所需框架 extra，再从仓库根目录运行。下面的命令不读取 API key，也不创建云任务：
+先安装 `cqlib`、`cqlib-tianyan` 和所需框架 extra（安装适配器时 pip 会从 PyPI 自动拉取这两个原生包），再从仓库根目录运行。下面的命令不读取 API key，也不创建云任务：
 
 | 适配器 | 转换 | 本地语义执行 |
 |---|---|---|
@@ -75,35 +74,21 @@ conda env create -f environment-dev.yml
 conda activate cqlib-adapter-dev
 ```
 
-`environment-dev.yml` 创建 Python、可选框架和质量工具环境，但不会安装集成测试所需的原生 `cqlib` 与 `cqlib-tianyan` 绑定；请从同一父目录中的源码构建它们：
+`environment-dev.yml` 创建 Python、可选框架和质量工具环境。原生 `cqlib` 与 `cqlib-tianyan` 绑定已发布到 PyPI，并为受支持平台提供预编译 wheel，无需再从源码编译。
 
-```text
-quantum-workspace/
-├── cqlib-adapter/
-├── cqlib/
-└── cqlib-tianyan/
-```
-
-必须使用 [`pyproject.toml`](pyproject.toml) 记录的精确修订，而不是默认分支：
+以可编辑模式安装适配器，pip 会把项目依赖 `cqlib` 与 `cqlib-tianyan` 一并从 PyPI 拉取：
 
 ```bash
-git clone https://github.com/cq-lib/cqlib.git ../cqlib
-git -C ../cqlib checkout 21f4814ce2cc7798b7102618d5a7617b47cd75b7
-git clone https://github.com/cq-lib/cqlib-tianyan.git ../cqlib-tianyan
-git -C ../cqlib-tianyan checkout ea3e88bb367e575f33ba1f9eca25aa283b77bd3c
-cd ../cqlib/crates/binding-python
-maturin develop --release
-cd ../../../cqlib-tianyan/crates/binding-python
-maturin develop --release
+python -m pip install -e ".[dev]"
 ```
 
-确认安装的是本地 `0.1.0` 原生扩展：
+确认加载的是 PyPI 原生扩展，版本应满足 [pyproject.toml](pyproject.toml) 声明的兼容区间：
 
 ```bash
 python -c "from importlib.metadata import version; import cqlib._native, cqlib_tianyan._cqlib_tianyan; print(version('cqlib'), cqlib._native.__file__); print(version('cqlib-tianyan'), cqlib_tianyan._cqlib_tianyan.__file__)"
 ```
 
-然后安装适配器：
+`dev` extra 是文档约定的 Windows/macOS 开发测试面，包含质量工具与 Qiskit、Cirq、PennyLane；Linux/WSL 在此基础上显式追加 CUDA-Q：
 
 ```bash
 # Windows/macOS：质量工具、Qiskit、Cirq、PennyLane

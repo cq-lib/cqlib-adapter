@@ -9,7 +9,7 @@ validation boundaries. A guard test replaces `cudaq.translate` with a function
 that fails, proving the production converter does not use the diagnostic QASM
 exporter.
 
-Run on Linux with CUDA-Q 0.15 installed:
+Run on Linux with a supported CUDA-Q release (`cudaq>=0.15,<0.17`, Python 3.11-3.13) installed:
 
 ```bash
 python -m pytest tests/cudaq -q
