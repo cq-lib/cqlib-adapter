@@ -227,12 +227,7 @@ def pennylane_to_cqlib(
     *,
     wire_order: Any | None = None,
 ) -> TranslationBundle[CircuitLike]:
-    """Translate a finite-shot PennyLane QuantumScript to cqlib IR.
-
-    All wires in ``wire_order`` are measured once at the end. Framework
-    measurement processes are retained as metadata and evaluated from the
-    canonical shot data after execution.
-    """
+    """Translate a finite-shot PennyLane QuantumScript to cqlib IR."""
 
     if not isinstance(tape, QuantumScript):
         raise TypeError("tape must be a pennylane.tape.QuantumScript")
@@ -243,6 +238,9 @@ def pennylane_to_cqlib(
     circuit_type = import_module("cqlib").Circuit
     output = circuit_type(len(order))
 
+    # 🔹 新增：用于累积全局相位
+    total_global_phase = 0.0
+    
     try:
         for index, operation in enumerate(tape.operations):
             name = operation.name
@@ -251,18 +249,26 @@ def pennylane_to_cqlib(
                 params = tuple(_numeric(value, operation=name) for value in operation.data)
             except AdapterConversionError as exc:
                 raise AdapterConversionError(f"operation at index {index}: {exc.message}") from exc
+                
             if name == "Barrier":
                 output.barrier(list(qubits))
                 continue
+                
+            # 🔹 修改：处理 GlobalPhase 并累加
             if name == "GlobalPhase":
                 if qubits or len(params) != 1:
                     raise AdapterConversionError("GlobalPhase must have one scalar parameter")
-                output.set_global_phase(params[0])
+                # PennyLane 使用 exp(-i*phi)，cqlib 符号相反，故取反
+                total_global_phase -= params[0]
                 continue
+                
             try:
                 _append_cqlib_operation(output, name=name, qubits=qubits, params=params)
             except AdapterConversionError as exc:
                 raise AdapterConversionError(f"operation at index {index}: {exc.message}") from exc
+
+        # 统一设置一次累积后的全局相位
+        output.set_global_phase(total_global_phase)
 
         for wire, basis in basis_requirements.items():
             _append_measurement_basis_rotation(output, wire_map[wire], basis)
@@ -274,12 +280,15 @@ def pennylane_to_cqlib(
         for qubit in range(len(order)):
             output.measure(qubit)
         output.validate()
+
         metadata = TranslationMetadata(
             framework="pennylane",
             qubits=qubit_ids,
             measurements=MeasurementMetadata(slots, len(order)),
             circuit_name=getattr(tape, "name", None),
             parameter_names=(),
+            # 🔹 新增：记录转换后的全局相位到元数据
+            global_phase=total_global_phase,
             extras={
                 "wire_order": tuple(order),
                 "active_wire_order": tuple(tape.wires),
@@ -399,7 +408,18 @@ def cqlib_to_pennylane(
         wire_order = tuple(metadata.extras["wire_order"])
     else:
         wire_order = default_order
+
+    # 🔹 新增：从元数据读取并还原符号
+    restored_gp = 0.0
+    if metadata is not None:
+        raw_gp = getattr(metadata, "global_phase", 0.0) or 0.0
+        restored_gp = -raw_gp  # 翻转符号以匹配 PennyLane 约定
+        
     operations: list[Any] = []
+    # 浮点数比较保护，避免极小噪声产生多余门
+    if abs(restored_gp) > 1e-10:
+        operations.append(qml.GlobalPhase(restored_gp))
+
     measured: list[Any] = []
     for operation in circuit.operations:
         name, indices, params = _operation_parts(operation)
@@ -412,6 +432,7 @@ def cqlib_to_pennylane(
             raise AdapterConversionError("cqlib reset conversion is not supported")
         else:
             operations.append(_pennylane_operation(name, wires, params))
+
     result_wires = measured or list(wire_order)
     measurement_name = measurement.strip().lower()
     if measurement_name == "counts":
@@ -422,6 +443,7 @@ def cqlib_to_pennylane(
         measurements = [qml.sample(wires=result_wires)]
     else:
         raise ValueError("measurement must be 'counts', 'probs' or 'sample'")
+
     return QuantumScript(operations, measurements, shots=shots)
 
 
