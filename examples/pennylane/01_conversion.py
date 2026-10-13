@@ -45,13 +45,16 @@ def main() -> None:
     artifact = compile_pennylane_circuit(
         tape,
         wire_order=(0, 1),
-        options=CompilationOptions(target_basis=NATIVE_BASIS, seed=19),
+        options=CompilationOptions(target_basis=NATIVE_BASIS),
     )
     print("\nTianyan-compatible QCIS:")
     print(artifact.qcis)
     print("measurement mapping:", artifact.measurements)
 
-    if "CZ Q0 Q1" not in artifact.qcis or artifact.qcis.count("M Q") != 2:
+    # Count only complete lines whose opcode is exactly "M"; a naive
+    # qcis.count("M Q") would also match the "Y2M Q1" gate line.
+    measurement_lines = [line for line in artifact.qcis.splitlines() if line.split()[:1] == ["M"]]
+    if "CZ Q0 Q1" not in artifact.qcis or len(measurement_lines) != 2:
         raise AssertionError("PennyLane circuit was not lowered to expected native QCIS")
     print("PASS: PennyLane -> cqlib -> QCIS conversion succeeded.")
 

@@ -49,9 +49,7 @@ def main() -> None:
         print(" ", operation)
     print("measurement-key bits:", bundle.metadata.extras["measurement_key_bits"])
 
-    artifact = compile_cirq_circuit(
-        circuit, options=CompilationOptions(target_basis=NATIVE_BASIS, seed=31)
-    )
+    artifact = compile_cirq_circuit(circuit, options=CompilationOptions(target_basis=NATIVE_BASIS))
     print("\nTianyan-compatible QCIS:")
     print(artifact.qcis)
     print("compiled measurement mapping:", artifact.measurements)

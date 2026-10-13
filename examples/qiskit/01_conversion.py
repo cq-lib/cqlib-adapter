@@ -41,7 +41,7 @@ for operation in bundle.circuit.operations:
 
 artifact = compile_qiskit_circuit(
     circuit,
-    options=CompilationOptions(target_basis=NATIVE_BASIS, seed=19),
+    options=CompilationOptions(target_basis=NATIVE_BASIS),
 )
 print("\nQCIS sent to Tianyan:")
 print(artifact.qcis)
