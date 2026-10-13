@@ -239,7 +239,7 @@ def pennylane_to_cqlib(
     output = circuit_type(len(order))
 
     total_global_phase = 0.0
-    
+
     try:
         for index, operation in enumerate(tape.operations):
             name = operation.name
@@ -248,17 +248,17 @@ def pennylane_to_cqlib(
                 params = tuple(_numeric(value, operation=name) for value in operation.data)
             except AdapterConversionError as exc:
                 raise AdapterConversionError(f"operation at index {index}: {exc.message}") from exc
-                
+
             if name == "Barrier":
                 output.barrier(list(qubits))
                 continue
-                
+
             if name == "GlobalPhase":
                 if qubits or len(params) != 1:
                     raise AdapterConversionError("GlobalPhase must have one scalar parameter")
                 total_global_phase -= params[0]
                 continue
-                
+
             try:
                 _append_cqlib_operation(output, name=name, qubits=qubits, params=params)
             except AdapterConversionError as exc:
@@ -409,7 +409,7 @@ def cqlib_to_pennylane(
     if metadata is not None:
         raw_gp = getattr(metadata, "global_phase", 0.0) or 0.0
         restored_gp = -raw_gp  # 翻转符号以匹配 PennyLane 约定
-        
+
     operations: list[Any] = []
     if abs(restored_gp) > 1e-10:
         operations.append(qml.GlobalPhase(restored_gp))
