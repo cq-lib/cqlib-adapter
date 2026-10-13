@@ -156,7 +156,6 @@ def qiskit_to_cqlib(circuit: QuantumCircuit) -> TranslationBundle[CircuitLike]:
         raise AdapterConversionError(
             "Qiskit circuit contains unbound parameters; call assign_parameters first"
         )
-
     circuit_type = import_module("cqlib").Circuit
     output = circuit_type(circuit.num_qubits)
     qubit_ids = _qubit_ids(circuit)
@@ -211,7 +210,8 @@ def qiskit_to_cqlib(circuit: QuantumCircuit) -> TranslationBundle[CircuitLike]:
                 output.reset(qargs[0])
                 continue
             if name in {"global_phase", "gphase"} and not qargs:
-                output.set_global_phase(_numeric(operation.params[0], instruction=name))
+                phase += _numeric(operation.params[0], instruction=name)
+                output.set_global_phase(phase)
                 continue
 
             params = tuple(_numeric(value, instruction=name) for value in operation.params)
