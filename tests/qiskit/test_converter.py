@@ -21,7 +21,13 @@ pytest.importorskip("cqlib")
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 from qiskit.circuit import Gate, Parameter
 
-from cqlib_adapter.common import AdapterConversionError, CompilationOptions
+from cqlib_adapter.common import (
+    AdapterConversionError,
+    CompilationOptions,
+    MeasurementMetadata,
+    MeasurementSlot,
+    TranslationMetadata,
+)
 from cqlib_adapter.qiskit import (
     FSimGate,
     RXYGate,
@@ -118,6 +124,104 @@ def test_supported_cqlib_circuit_converts_back_to_qiskit() -> None:
     assert [item.operation.name for item in restored.data] == ["h", "cx", "measure", "measure"]
     assert restored.num_qubits == 2
     assert restored.num_clbits == 2
+
+
+@pytest.mark.parametrize(
+    ("instructions", "expected_qubits"),
+    [
+        pytest.param((), (), id="no-measurements"),
+        pytest.param((("measure", (2,)),), (2,), id="single-measure"),
+        pytest.param((("measure_bits", (2,)),), (2,), id="singleton-measure-bits"),
+        pytest.param(
+            (("measure", (0,)), ("measure", (1,)), ("measure", (2,))),
+            (0, 1, 2),
+            id="separate-measurements",
+        ),
+        pytest.param((("measure_bits", (0, 1, 2)),), (0, 1, 2), id="multi-qubit"),
+        pytest.param(
+            (("measure", (0,)), ("measure_bits", (2, 1))),
+            (0, 2, 1),
+            id="single-then-group",
+        ),
+        pytest.param(
+            (("measure_bits", (2, 0)), ("measure", (1,))),
+            (2, 0, 1),
+            id="group-then-single",
+        ),
+        pytest.param(
+            (("measure_bits", (0, 2)), ("measure_bits", (1, 0))),
+            (0, 2, 1, 0),
+            id="multiple-groups-repeated-qubit",
+        ),
+        pytest.param((("measure_bits", (2, 0)),), (2, 0), id="nonascending-subset"),
+    ],
+)
+def test_reverse_measurements_allocate_classical_bits_without_metadata(
+    instructions: tuple[tuple[str, tuple[int, ...]], ...],
+    expected_qubits: tuple[int, ...],
+) -> None:
+    from cqlib import Circuit
+
+    circuit = Circuit(3)
+    for name, qubits in instructions:
+        if name == "measure":
+            circuit.measure(qubits[0])
+        else:
+            circuit.measure_bits(list(qubits))
+
+    restored = cqlib_to_qiskit(circuit)
+
+    assert restored.num_qubits == 3
+    assert restored.num_clbits == len(expected_qubits)
+    assert [item.operation.name for item in restored.data] == ["measure"] * len(expected_qubits)
+    assert [
+        (restored.find_bit(item.qubits[0]).index, restored.find_bit(item.clbits[0]).index)
+        for item in restored.data
+    ] == [(qubit, classical) for classical, qubit in enumerate(expected_qubits)]
+
+
+@pytest.mark.parametrize(
+    "register_sizes",
+    [
+        pytest.param({}, id="without-registers"),
+        pytest.param({"left": 1, "right": 3}, id="with-registers"),
+    ],
+)
+def test_reverse_mixed_measurements_preserve_metadata_layout(
+    register_sizes: dict[str, int],
+) -> None:
+    from cqlib import Circuit
+
+    circuit = Circuit(3)
+    circuit.measure_bits([2, 0])
+    circuit.measure(1)
+    metadata = TranslationMetadata(
+        framework="qiskit",
+        qubits=("q0", "q1", "q2"),
+        measurements=MeasurementMetadata(
+            slots=(
+                MeasurementSlot("q2", 3),
+                MeasurementSlot("q0", 0),
+                MeasurementSlot("q1", 2),
+            ),
+            num_classical_bits=4,
+            register_sizes=register_sizes,
+        ),
+    )
+
+    restored = cqlib_to_qiskit(circuit, metadata=metadata)
+
+    assert restored.num_qubits == 3
+    assert restored.num_clbits == 4
+    assert [item.operation.name for item in restored.data] == ["measure", "measure", "measure"]
+    assert [
+        (restored.find_bit(item.qubits[0]).index, restored.find_bit(item.clbits[0]).index)
+        for item in restored.data
+    ] == [(2, 3), (0, 0), (1, 2)]
+    if register_sizes:
+        assert [(register.name, register.size) for register in restored.cregs] == list(
+            register_sizes.items()
+        )
 
 
 def test_every_declared_m2_gate_converts_in_both_directions() -> None:
