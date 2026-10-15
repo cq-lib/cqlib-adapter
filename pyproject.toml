@@ -38,7 +38,7 @@ classifiers = [
 ]
 dependencies = [
     "cqlib>=2.0.0b1,<2.1",
-    "cqlib-tianyan>=0.1.0b1,<0.2",
+    "cqlib-tianyan>=0.1.0b2,<0.2",
 ]
 
 [project.optional-dependencies]
