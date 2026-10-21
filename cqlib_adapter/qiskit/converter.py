@@ -338,7 +338,9 @@ def cqlib_to_qiskit(
     num_qubits = max(physical_qubits, default=-1) + 1
     operations = [_operation_parts(operation) for operation in circuit.operations]
     measurement_count = sum(
-        name in {"measure", "measure_bit", "measure_bits"} for name, _, _ in operations
+        len(qubits) if name == "measure_bits" else 1
+        for name, qubits, _ in operations
+        if name in {"measure", "measure_bit", "measure_bits"}
     )
     num_clbits = (
         metadata.measurements.num_classical_bits if metadata is not None else measurement_count
